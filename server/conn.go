@@ -279,9 +279,9 @@ func (c *Conn) read() (pk any, err error) {
 		return nil, err
 	}
 
-	if payload[0] == packetDecodeNotNeeded {
-		return decompressed, nil
-	}
+	// if payload[0] == packetDecodeNotNeeded {
+	// 	return decompressed, nil
+	// }
 
 	buf := bytes.NewBuffer(decompressed)
 	header := &packet.Header{}
