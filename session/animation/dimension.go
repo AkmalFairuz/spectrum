@@ -24,14 +24,6 @@ func (animation *Dimension) Play(conn *minecraft.Conn, serverGameData minecraft.
 func (animation *Dimension) Clear(conn *minecraft.Conn, serverGameData minecraft.GameData) {
 	_ = conn.WritePacket(&packet.PlayStatus{Status: packet.PlayStatusPlayerSpawn})
 	sendDimension(conn, serverGameData, packet.DimensionOverworld, true)
-
-	_ = conn.WritePacket(&packet.MovePlayer{
-		EntityRuntimeID: serverGameData.EntityRuntimeID,
-		Position:        serverGameData.PlayerPosition,
-		Pitch:           serverGameData.Pitch,
-		Yaw:             serverGameData.Yaw,
-		Mode:            packet.MoveModeReset,
-	})
 }
 
 // sendDimension updates the player's dimension and optionally force-spawns them if playStatus is enabled.
