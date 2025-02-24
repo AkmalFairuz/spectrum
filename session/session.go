@@ -39,20 +39,18 @@ type Session struct {
 	processor Processor
 	tracker   *tracker
 
-	loggedIn     bool
-	transferring atomic.Bool
-
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 
-	closed atomic.Bool
-	once   sync.Once
+	transferring atomic.Bool
+	closed       atomic.Bool
+	once         sync.Once
 }
 
 // NewSession creates a new Session instance using the provided minecraft.Conn.
-func NewSession(clientConn *minecraft.Conn, logger *slog.Logger, registry *Registry, discovery server.Discovery, opts util.Opts, transport transport.Transport) *Session {
+func NewSession(clientConn interface{}, logger *slog.Logger, registry *Registry, discovery server.Discovery, opts util.Opts, transport transport.Transport) *Session {
 	s := &Session{
-		clientConn: clientConn,
+		clientConn: clientConn.(*minecraft.Conn),
 
 		logger:   logger,
 		registry: registry,
@@ -65,8 +63,12 @@ func NewSession(clientConn *minecraft.Conn, logger *slog.Logger, registry *Regis
 		processor: NopProcessor{},
 		tracker:   newTracker(),
 	}
-	s.ctx, s.cancelFunc = context.WithCancel(context.Background())
-	s.serverMu.Lock()
+
+	if c, ok := clientConn.(interface{ Context() context.Context }); ok {
+		s.ctx, s.cancelFunc = context.WithCancel(c.Context())
+	} else {
+		s.ctx, s.cancelFunc = context.WithCancel(context.Background())
+	}
 	return s
 }
 
@@ -88,12 +90,6 @@ func (s *Session) LoginTimeout(duration time.Duration) (err error) {
 // establishing a connection, and spawning the player in the game. The process is performed
 // using the provided context for cancellation.
 func (s *Session) LoginContext(ctx context.Context) (err error) {
-	defer s.serverMu.Unlock()
-
-	go handleServer(s)
-	go handleClient(s)
-	go handleLatency(s, s.opts.LatencyInterval)
-
 	identityData := s.clientConn.IdentityData()
 	serverAddr, err := s.discovery.Discover(s.clientConn)
 	if err != nil {
@@ -125,8 +121,10 @@ func (s *Session) LoginContext(ctx context.Context) (err error) {
 		s.logger.Debug("startgame sequence failed", "err", err)
 		return err
 	}
+	go handleServer(s)
+	go handleClient(s)
+	go handleLatency(s, s.opts.LatencyInterval)
 	s.shieldID = serverConn.ShieldID()
-	s.loggedIn = true
 	s.registry.AddSession(identityData.XUID, s)
 	s.logger.Info("logged in session")
 	return
@@ -296,41 +294,41 @@ func (s *Session) Server() *server.Conn {
 
 // Disconnect sends a packet.Disconnect to the client and closes the session.
 func (s *Session) Disconnect(message string) {
-	if !s.closed.Load() {
-		s.logger.Debug("disconnecting session", "message", message)
-		_ = s.clientConn.WritePacket(&packet.Disconnect{Message: message})
-		_ = s.Close()
-	}
+	s.logger.Debug("disconnecting", "message", message)
+	_ = s.clientConn.WritePacket(&packet.Disconnect{Message: message})
+	_ = s.Close()
 }
 
 // Close closes the session, including the server and client connections.
 func (s *Session) Close() (err error) {
-	s.once.Do(func() {
-		s.closed.Store(true)
-		if s.cancelFunc != nil {
-			s.cancelFunc()
-		}
+	select {
+	case <-s.ctx.Done():
+		return errors.New("already closed")
+	default:
+	}
 
-		s.processor.ProcessDisconnection(NewContext())
-		_ = s.clientConn.Close()
-		if s.serverConn != nil {
-			_ = s.serverConn.Close()
-		}
-
-		identity := s.clientConn.IdentityData()
-		s.registry.RemoveSession(identity.XUID)
-		if s.loggedIn {
-			s.logger.Info("closed session")
-		} else {
-			s.logger.Debug("closed unlogged session")
-		}
-	})
+	s.cancelFunc()
+	s.processor.ProcessDisconnection(NewContext())
+	_ = s.clientConn.Close()
+	s.serverMu.RLock()
+	if s.serverConn != nil {
+		_ = s.serverConn.Close()
+	}
+	s.serverMu.RUnlock()
+	s.registry.RemoveSession(s.clientConn.IdentityData().XUID)
+	s.logger.Info("closed session")
 	return
 }
 
 // dial dials the specified server address and returns a new server.Conn instance.
 // The provided context is used to manage timeouts and cancellations during the dialing process.
 func (s *Session) dial(ctx context.Context, addr string) (*server.Conn, error) {
+	select {
+	case <-s.ctx.Done():
+		return nil, errors.New("session is closed")
+	default:
+	}
+
 	conn, err := s.transport.Dial(ctx, addr)
 	if err != nil {
 		return nil, err
@@ -347,6 +345,12 @@ func (s *Session) dial(ctx context.Context, addr string) (*server.Conn, error) {
 
 // fallback attempts to transfer the session to a fallback server provided by the discovery.
 func (s *Session) fallback() (err error) {
+	select {
+	case <-s.ctx.Done():
+		return
+	default:
+	}
+
 	addr, err := s.discovery.DiscoverFallback(s.clientConn)
 	if err != nil {
 		return err
