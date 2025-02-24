@@ -179,13 +179,13 @@ func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, pay
 		return errors.New("failed to decode header")
 	}
 
-	if !slices.Contains(s.opts.ClientDecode, header.PacketID) {
-		s.processor.ProcessClientEncoded(ctx, &payload)
-		if !ctx.Cancelled() {
-			return s.Server().Write(payload)
-		}
-		return
-	}
+	// if !slices.Contains(s.opts.ClientDecode, header.PacketID) {
+	// 	s.processor.ProcessClientEncoded(ctx, &payload)
+	// 	if !ctx.Cancelled() {
+	// 		return s.Server().Write(payload)
+	// 	}
+	// 	return
+	// }
 
 	defer func() {
 		if r := recover(); r != nil {
