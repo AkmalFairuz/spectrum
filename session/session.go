@@ -194,6 +194,9 @@ func (s *Session) TransferContext(ctx context.Context, addr string) (err error) 
 		}
 	}
 	s.tracker.clearAll(s)
+
+	time.Sleep(time.Millisecond * 250) // intentionally slow down the transfer to fix dim animation
+
 	_ = s.client.WritePacket(&packet.MovePlayer{
 		EntityRuntimeID: serverGameData.EntityRuntimeID,
 		Position:        serverGameData.PlayerPosition,
