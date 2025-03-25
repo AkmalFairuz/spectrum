@@ -16,6 +16,7 @@ func handleServer(s *Session) {
 loop:
 	for {
 		server := s.Server()
+
 		select {
 		case <-s.ctx.Done():
 			s.CloseWithError(context.Cause(s.ctx))
@@ -33,6 +34,7 @@ loop:
 		default:
 		}
 
+		server = s.Server()
 		pk, err := server.ReadPacket()
 		if err != nil {
 			server.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
