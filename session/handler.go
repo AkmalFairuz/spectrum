@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	packet2 "github.com/cooldogedev/spectrum/server/packet"
+	spectrumpacket "github.com/cooldogedev/spectrum/server/packet"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
 
@@ -15,26 +15,25 @@ import (
 func handleServer(s *Session) {
 loop:
 	for {
-		server := s.Server()
-
 		select {
 		case <-s.ctx.Done():
 			s.CloseWithError(context.Cause(s.ctx))
 			break loop
-		case <-server.Context().Done():
-			if s.transferring.Load() || s.Server() != server {
-				continue loop
-			}
+		default:
+		}
 
+		server := s.Server()
+		select {
+		case <-server.Context().Done():
 			if err := s.fallback(); err != nil {
 				s.CloseWithError(fmt.Errorf("fallback failed: %w", err))
 				logError(s, "failed to fallback to a different server", err)
 				break loop
 			}
+			continue loop
 		default:
 		}
 
-		server = s.Server()
 		pk, err := server.ReadPacket()
 		if err != nil {
 			server.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
@@ -42,9 +41,11 @@ loop:
 		}
 
 		switch pk := pk.(type) {
-		case *packet2.Latency:
+		case *spectrumpacket.Flush:
+			_ = s.client.Flush()
+		case *spectrumpacket.Latency:
 			s.latency.Store(pk.Latency)
-		case *packet2.Transfer:
+		case *spectrumpacket.Transfer:
 			if err := s.Transfer(pk.Addr); err != nil {
 				logError(s, "failed to transfer", err)
 			}
@@ -131,7 +132,7 @@ loop:
 			s.CloseWithError(context.Cause(s.ctx))
 			break loop
 		case <-ticker.C:
-			if err := s.Server().WritePacket(&packet2.Latency{Latency: s.client.Latency().Milliseconds() * 2, Timestamp: time.Now().UnixMilli()}); err != nil {
+			if err := s.Server().WritePacket(&spectrumpacket.Latency{Latency: s.client.Latency().Milliseconds() * 2, Timestamp: time.Now().UnixMilli()}); err != nil {
 				logError(s, "failed to write latency packet", err)
 			}
 		}
