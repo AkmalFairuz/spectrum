@@ -34,42 +34,13 @@ loop:
 		default:
 		}
 
-		pk, err := server.ReadPacket()
+		batch, err := server.ReadPacket()
 		if err != nil {
 			server.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
 			continue loop
 		}
 
-		switch pk := pk.(type) {
-		case *spectrumpacket.Flush:
-			_ = s.client.Flush()
-		case *spectrumpacket.Latency:
-			s.latency.Store(pk.Latency)
-		case *spectrumpacket.Transfer:
-			if err := s.Transfer(pk.Addr); err != nil {
-				logError(s, "failed to transfer", err)
-			}
-		case packet.Packet:
-			ctx := NewContext()
-			s.processor.ProcessServer(ctx, &pk)
-			if ctx.Cancelled() {
-				continue loop
-			}
-
-			if s.opts.SyncProtocol {
-				for _, latest := range s.client.Proto().ConvertToLatest(pk, s.client) {
-					s.tracker.handlePacket(latest)
-				}
-			} else {
-				s.tracker.handlePacket(pk)
-			}
-
-			if err := s.client.WritePacket(pk); err != nil {
-				s.CloseWithError(fmt.Errorf("failed to write packet to client: %w", err))
-				logError(s, "failed to write packet to client", err)
-				break loop
-			}
-		case []byte:
+		if pk, ok := batch.([]byte); ok {
 			ctx := NewContext()
 			s.processor.ProcessServerEncoded(ctx, &pk)
 			if ctx.Cancelled() {
@@ -80,6 +51,48 @@ loop:
 				s.CloseWithError(fmt.Errorf("failed to write packet to client: %w", err))
 				logError(s, "failed to write packet to client", err)
 				break loop
+			}
+
+			continue loop
+		}
+
+		packets, ok := batch.([]packet.Packet)
+		if !ok {
+			s.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
+			logError(s, "failed to read packet from server", err)
+			break loop
+		}
+
+		for _, pk := range packets {
+			switch pk := pk.(type) {
+			case *spectrumpacket.Flush:
+				_ = s.client.Flush()
+			case *spectrumpacket.Latency:
+				s.latency.Store(pk.Latency)
+			case *spectrumpacket.Transfer:
+				if err := s.Transfer(pk.Addr); err != nil {
+					logError(s, "failed to transfer", err)
+				}
+			case packet.Packet:
+				ctx := NewContext()
+				s.processor.ProcessServer(ctx, &pk)
+				if ctx.Cancelled() {
+					continue loop
+				}
+
+				if s.opts.SyncProtocol {
+					for _, latest := range s.client.Proto().ConvertToLatest(pk, s.client) {
+						s.tracker.handlePacket(latest)
+					}
+				} else {
+					s.tracker.handlePacket(pk)
+				}
+
+				if err := s.client.WritePacket(pk); err != nil {
+					s.CloseWithError(fmt.Errorf("failed to write packet to client: %w", err))
+					logError(s, "failed to write packet to client", err)
+					break loop
+				}
 			}
 		}
 	}

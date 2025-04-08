@@ -23,8 +23,10 @@ import (
 )
 
 const (
-	packetDecodeNeeded    = 0x00
-	packetDecodeNotNeeded = 0x01
+	flagPacketCompressed   = 0x01
+	flagPacketDecodeNeeded = 0x02
+
+	compressionThreshold = 256
 )
 
 // Conn represents a connection to a server, managing packet reading and writing
@@ -105,16 +107,18 @@ func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logge
 					break read
 				}
 
-				pk, ok := payload.(packet.Packet)
+				pks, ok := payload.([]packet.Packet)
 				if !ok {
 					c.deferPacket(payload)
 					continue
 				}
 
-				if err := c.handlePacket(pk); err != nil {
-					c.CloseWithError(fmt.Errorf("failed to handle connection sequence packet: %w", err))
-					c.logger.Error("failed to handle connection sequence packet", "err", err)
-					break read
+				for _, pk := range pks {
+					if err := c.handlePacket(pk); err != nil {
+						c.CloseWithError(fmt.Errorf("failed to handle connection sequence packet: %w", err))
+						c.logger.Error("failed to handle connection sequence packet", "err", err)
+						break read
+					}
 				}
 			}
 		}
@@ -150,7 +154,13 @@ func (c *Conn) WritePacket(pk packet.Packet) error {
 		return err
 	}
 	pk.Marshal(c.protocol.NewWriter(buf, c.shieldID))
-	return c.writer.Write(snappy.Encode(nil, buf.Bytes()))
+	flags := byte(0)
+	decompressed := buf.Bytes()
+	if len(decompressed) > compressionThreshold {
+		flags |= flagPacketCompressed
+		return c.writer.Write(append([]byte{flags}, snappy.Encode(nil, decompressed)...))
+	}
+	return c.writer.Write(append([]byte{flags}, decompressed...))
 }
 
 // Write writes provided byte slice to the underlying connection.
@@ -229,11 +239,11 @@ func (c *Conn) CloseWithError(err error) {
 	})
 }
 
-// read reads a packet from the connection, handling decompression and decoding as necessary.
+// read reads packets from the connection, handling decompression and decoding as necessary.
 // Packets are prefixed with a special byte (packetDecodeNeeded or packetDecodeNotNeeded) indicating
 // the decoding necessity. If decode is false and the packet does not require decoding,
 // it returns the raw decompressed payload.
-func (c *Conn) read() (pk any, err error) {
+func (c *Conn) read() (any, error) {
 	select {
 	case <-c.ctx.Done():
 		return nil, net.ErrClosed
@@ -245,37 +255,54 @@ func (c *Conn) read() (pk any, err error) {
 		return nil, err
 	}
 
-	if payload[0] != packetDecodeNeeded && payload[0] != packetDecodeNotNeeded {
-		return nil, fmt.Errorf("unknown decode byte marker %v", payload[0])
-	}
+	flags := payload[0]
 
-	decompressed, err := snappy.Decode(nil, payload[1:])
-	if err != nil {
-		return nil, err
-	}
+	var buf *bytes.Buffer
 
-	//if payload[0] == packetDecodeNotNeeded {
-	//	return decompressed, nil
-	//}
-
-	buf := bytes.NewBuffer(decompressed)
-	header := &packet.Header{}
-	if err := header.Read(buf); err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic while decoding packet %v: %v", header.PacketID, r)
+	if flags&flagPacketCompressed != 0 {
+		decompressed, err := snappy.Decode(nil, payload[1:])
+		if err != nil {
+			return nil, err
 		}
-	}()
-	factory, ok := c.pool[header.PacketID]
-	if !ok {
-		return nil, fmt.Errorf("unknown packet ID %v", header.PacketID)
+		buf = bytes.NewBuffer(decompressed)
+	} else {
+		buf = bytes.NewBuffer(payload[1:])
 	}
-	pk = factory()
-	pk.(packet.Packet).Marshal(c.protocol.NewReader(buf, c.shieldID, false))
-	return pk, nil
+
+	if flags&flagPacketDecodeNeeded == 0 {
+		return buf, nil
+	}
+
+	pks := make([]packet.Packet, 0, 2)
+	for {
+		var pk packet.Packet
+		header := &packet.Header{}
+		if err := header.Read(buf); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		if err := func() (err2 error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err2 = fmt.Errorf("panic while decoding packet %v: %v", header.PacketID, r)
+				}
+			}()
+			factory, ok := c.pool[header.PacketID]
+			if !ok {
+				return fmt.Errorf("unknown packet ID %v", header.PacketID)
+			}
+			pk = factory()
+			pk.(packet.Packet).Marshal(c.protocol.NewReader(buf, c.shieldID, false))
+			pks = append(pks, pk)
+			return nil
+		}(); err != nil {
+			return nil, err
+		}
+	}
+	return pks, nil
 }
 
 // deferPacket defers a packet to be returned later in ReadPacket().
