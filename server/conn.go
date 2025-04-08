@@ -167,7 +167,12 @@ func (c *Conn) WritePacket(pk packet.Packet) error {
 func (c *Conn) Write(p []byte) error {
 	c.writerMu.Lock()
 	defer c.writerMu.Unlock()
-	return c.writer.Write(snappy.Encode(nil, p))
+	flags := byte(0)
+	if len(p) > compressionThreshold {
+		flags |= flagPacketCompressed
+		return c.writer.Write(append([]byte{flags}, snappy.Encode(nil, p)...))
+	}
+	return c.writer.Write(append([]byte{flags}, p...))
 }
 
 // Connect initiates the connection sequence with a default timeout of 1 minute.
