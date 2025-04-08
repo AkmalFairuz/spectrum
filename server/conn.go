@@ -276,19 +276,33 @@ func (c *Conn) read() (any, error) {
 		batchBuf = bytes.NewBuffer(payload[1:])
 	}
 
-	if flags&flagPacketDecodeNotNeeded != 0 {
-		return batchBuf.Bytes(), nil
+	decodeNotNeeded := flags&flagPacketDecodeNotNeeded != 0
+
+	var packetsLen uint32
+	if err := protocol2.Varuint32(batchBuf, &packetsLen); err != nil {
+		return nil, err
 	}
 
-	pks := make([]packet.Packet, 0, 2)
-	for {
+	var pks []packet.Packet
+	var encodedPks [][]byte
+
+	if decodeNotNeeded {
+		encodedPks = make([][]byte, 0, packetsLen)
+	} else {
+		pks = make([]packet.Packet, 0, packetsLen)
+	}
+
+	for i := uint32(0); i < packetsLen; i++ {
 		var l uint32
 		if err := protocol2.Varuint32(batchBuf, &l); err != nil {
-			if err == io.EOF {
-				break
-			}
 			return nil, err
 		}
+
+		if decodeNotNeeded {
+			encodedPks = append(encodedPks, batchBuf.Next(int(l)))
+			continue
+		}
+
 		buf := bytes.NewReader(batchBuf.Next(int(l)))
 
 		var pk packet.Packet
@@ -308,7 +322,7 @@ func (c *Conn) read() (any, error) {
 				return fmt.Errorf("unknown packet ID %v", header.PacketID)
 			}
 			pk = factory()
-			pk.(packet.Packet).Marshal(c.protocol.NewReader(batchBuf, c.shieldID, false))
+			pk.(packet.Packet).Marshal(c.protocol.NewReader(buf, c.shieldID, false))
 			pks = append(pks, pk)
 			return nil
 		}(); err != nil {

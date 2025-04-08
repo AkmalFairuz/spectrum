@@ -40,19 +40,20 @@ loop:
 			continue loop
 		}
 
-		if pk, ok := batch.([]byte); ok {
-			ctx := NewContext()
-			s.processor.ProcessServerEncoded(ctx, &pk)
-			if ctx.Cancelled() {
-				continue loop
-			}
+		if pks, ok := batch.([][]byte); ok {
+			for _, pk := range pks {
+				ctx := NewContext()
+				s.processor.ProcessServerEncoded(ctx, &pk)
+				if ctx.Cancelled() {
+					continue
+				}
 
-			if _, err := s.client.Write(pk); err != nil {
-				s.CloseWithError(fmt.Errorf("failed to write packet to client: %w", err))
-				logError(s, "failed to write packet to client", err)
-				break loop
+				if _, err := s.client.Write(pk); err != nil {
+					s.CloseWithError(fmt.Errorf("failed to write packet to client: %w", err))
+					logError(s, "failed to write packet to client", err)
+					break loop
+				}
 			}
-
 			continue loop
 		}
 
@@ -77,7 +78,7 @@ loop:
 				ctx := NewContext()
 				s.processor.ProcessServer(ctx, &pk)
 				if ctx.Cancelled() {
-					continue loop
+					continue
 				}
 
 				if s.opts.SyncProtocol {
