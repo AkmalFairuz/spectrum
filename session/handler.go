@@ -57,11 +57,21 @@ loop:
 			continue loop
 		}
 
-		packets, ok := batch.([]packet.Packet)
-		if !ok {
-			s.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
-			logError(s, "failed to read packet from server", err)
-			break loop
+		shouldFlush := true
+
+		var packets []packet.Packet
+		var isPackets bool
+
+		packets, isPackets = batch.([]packet.Packet)
+		if !isPackets {
+			if pk, ok := batch.(packet.Packet); ok {
+				packets = []packet.Packet{pk}
+				shouldFlush = false
+			} else {
+				s.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
+				logError(s, "failed to read packet from server", err)
+				break loop
+			}
 		}
 
 		for _, pk := range packets {
@@ -95,6 +105,10 @@ loop:
 					break loop
 				}
 			}
+		}
+
+		if shouldFlush {
+			s.ClientFlush()
 		}
 	}
 }

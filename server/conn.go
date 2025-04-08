@@ -110,7 +110,6 @@ func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logge
 
 				pks, ok := payload.([]packet.Packet)
 				if !ok {
-					fmt.Printf("deferred cuy: %T\n", payload)
 					c.deferPacket(payload)
 					continue
 				}
@@ -292,42 +291,48 @@ func (c *Conn) read() (any, error) {
 		pks = make([]packet.Packet, 0, packetsLen)
 	}
 
+	hdr := &packet.Header{}
 	for i := uint32(0); i < packetsLen; i++ {
 		var l uint32
 		if err := protocol2.Varuint32(batchBuf, &l); err != nil {
 			return nil, err
 		}
 
+		next := batchBuf.Next(int(l))
+
 		if decodeNotNeeded {
-			encodedPks = append(encodedPks, batchBuf.Next(int(l)))
+			encodedPks = append(encodedPks, append([]byte(nil), next...))
 			continue
 		}
 
-		buf := bytes.NewReader(batchBuf.Next(int(l)))
+		buf := bytes.NewBuffer(next)
 
-		var pk packet.Packet
-		header := &packet.Header{}
-		if err := header.Read(buf); err != nil {
+		if err := hdr.Read(buf); err != nil {
 			return nil, err
 		}
+		pid := hdr.PacketID
 
 		if err := func() (err2 error) {
 			defer func() {
 				if r := recover(); r != nil {
-					err2 = fmt.Errorf("panic while decoding packet %v: %v", header.PacketID, r)
+					err2 = fmt.Errorf("panic while decoding packet %v: %v", pid, r)
 				}
 			}()
-			factory, ok := c.pool[header.PacketID]
+			factory, ok := c.pool[pid]
 			if !ok {
-				return fmt.Errorf("unknown packet ID %v", header.PacketID)
+				return fmt.Errorf("unknown packet ID %v", pid)
 			}
-			pk = factory()
+			pk := factory()
 			pk.(packet.Packet).Marshal(c.protocol.NewReader(buf, c.shieldID, false))
 			pks = append(pks, pk)
 			return nil
 		}(); err != nil {
 			return nil, err
 		}
+	}
+
+	if decodeNotNeeded {
+		return encodedPks, nil
 	}
 	return pks, nil
 }
