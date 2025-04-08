@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	protocol2 "github.com/sandertv/gophertunnel/minecraft/protocol"
 	"io"
 	"log/slog"
 	"net"
@@ -23,8 +24,8 @@ import (
 )
 
 const (
-	flagPacketCompressed   = 0x01
-	flagPacketDecodeNeeded = 0x02
+	flagPacketCompressed      = 0x01
+	flagPacketDecodeNotNeeded = 0x02
 
 	compressionThreshold = 256
 )
@@ -109,6 +110,7 @@ func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logge
 
 				pks, ok := payload.([]packet.Packet)
 				if !ok {
+					fmt.Printf("deferred cuy: %T\n", payload)
 					c.deferPacket(payload)
 					continue
 				}
@@ -262,30 +264,36 @@ func (c *Conn) read() (any, error) {
 
 	flags := payload[0]
 
-	var buf *bytes.Buffer
+	var batchBuf *bytes.Buffer
 
 	if flags&flagPacketCompressed != 0 {
 		decompressed, err := snappy.Decode(nil, payload[1:])
 		if err != nil {
 			return nil, err
 		}
-		buf = bytes.NewBuffer(decompressed)
+		batchBuf = bytes.NewBuffer(decompressed)
 	} else {
-		buf = bytes.NewBuffer(payload[1:])
+		batchBuf = bytes.NewBuffer(payload[1:])
 	}
 
-	if flags&flagPacketDecodeNeeded == 0 {
-		return buf, nil
+	if flags&flagPacketDecodeNotNeeded != 0 {
+		return batchBuf.Bytes(), nil
 	}
 
 	pks := make([]packet.Packet, 0, 2)
 	for {
+		var l uint32
+		if err := protocol2.Varuint32(batchBuf, &l); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		buf := bytes.NewReader(batchBuf.Next(int(l)))
+
 		var pk packet.Packet
 		header := &packet.Header{}
 		if err := header.Read(buf); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
 			return nil, err
 		}
 
@@ -300,7 +308,7 @@ func (c *Conn) read() (any, error) {
 				return fmt.Errorf("unknown packet ID %v", header.PacketID)
 			}
 			pk = factory()
-			pk.(packet.Packet).Marshal(c.protocol.NewReader(buf, c.shieldID, false))
+			pk.(packet.Packet).Marshal(c.protocol.NewReader(batchBuf, c.shieldID, false))
 			pks = append(pks, pk)
 			return nil
 		}(); err != nil {
