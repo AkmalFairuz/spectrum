@@ -73,7 +73,7 @@ loop:
 				if err := s.Transfer(pk.Addr); err != nil {
 					logError(s, "failed to transfer", err)
 				}
-			case packet.Packet:
+			default:
 				ctx := NewContext()
 				s.processor.ProcessServer(ctx, &pk)
 				if ctx.Cancelled() {
