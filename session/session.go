@@ -46,6 +46,8 @@ type Session struct {
 	once         sync.Once
 
 	clientDecode map[uint32]struct{}
+
+	clientFlusher chan struct{}
 }
 
 // NewSession creates a new Session instance using the provided minecraft.Conn.
@@ -65,8 +67,11 @@ func NewSession(client *minecraft.Conn, logger *slog.Logger, registry *Registry,
 		tracker:   newTracker(),
 
 		clientDecode: opts.ClientDecodeAsMap(),
+
+		clientFlusher: make(chan struct{}),
 	}
 	s.ctx, s.cancelFunc = context.WithCancelCause(client.Context())
+	go handleFlusher(s)
 	return s
 }
 
@@ -284,6 +289,14 @@ func (s *Session) Disconnect(message string) {
 	s.CloseWithError(errors.New(message))
 }
 
+// ClientFlush ...
+func (s *Session) ClientFlush() {
+	select {
+	case s.clientFlusher <- struct{}{}:
+	default:
+	}
+}
+
 // Close closes the session, including the server and client connections.
 func (s *Session) Close() (err error) {
 	s.CloseWithError(errors.New("closed by application"))
@@ -302,6 +315,7 @@ func (s *Session) CloseWithError(err error) {
 		s.serverMu.RUnlock()
 		s.registry.RemoveSession(s.client.IdentityData().XUID)
 		s.logger.Info("closed session")
+		close(s.clientFlusher)
 	})
 }
 

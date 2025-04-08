@@ -196,6 +196,24 @@ func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shi
 	return
 }
 
+// handleFlusher ...
+func handleFlusher(s *Session) {
+loop:
+	for {
+		select {
+		case <-s.ctx.Done():
+			s.CloseWithError(context.Cause(s.ctx))
+			break loop
+		case <-s.clientFlusher:
+			if err := s.client.Flush(); err != nil {
+				s.CloseWithError(fmt.Errorf("failed to flush client: %w", err))
+				logError(s, "failed to flush client", err)
+				break loop
+			}
+		}
+	}
+}
+
 func logError(s *Session, msg string, err error) {
 	select {
 	case <-s.ctx.Done():
