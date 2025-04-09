@@ -203,7 +203,7 @@ func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shi
 		}
 
 		for _, latest := range s.client.Proto().ConvertToLatest(pk, s.client) {
-			switch pk.(type) {
+			switch latest.(type) {
 			case *packet.SetLocalPlayerAsInitialised:
 				s.Server().SetReady()
 				continue
