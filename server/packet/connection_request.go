@@ -13,6 +13,8 @@ type ConnectionRequest struct {
 	ClientData []byte
 	// IdentityData is the player's login.IdentityData.
 	IdentityData []byte
+	// InitialConnection is true if player is connecting for the first time.
+	InitialConnection bool
 }
 
 // ID ...
@@ -26,4 +28,5 @@ func (pk *ConnectionRequest) Marshal(io protocol.IO) {
 	io.String(&pk.Token)
 	io.ByteSlice(&pk.ClientData)
 	io.ByteSlice(&pk.IdentityData)
+	io.Bool(&pk.InitialConnection)
 }

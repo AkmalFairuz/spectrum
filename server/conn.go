@@ -365,10 +365,11 @@ func (c *Conn) sendConnectionRequest() error {
 	}
 
 	err = c.WritePacket(&packet2.ConnectionRequest{
-		Addr:         c.client.RemoteAddr().String(),
-		Token:        c.token,
-		ClientData:   clientData,
-		IdentityData: identityData,
+		Addr:              c.client.RemoteAddr().String(),
+		Token:             c.token,
+		ClientData:        clientData,
+		IdentityData:      identityData,
+		InitialConnection: c.initialServer,
 	})
 	if err != nil {
 		return err
