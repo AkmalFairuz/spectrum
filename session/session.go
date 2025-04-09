@@ -307,6 +307,7 @@ func (s *Session) Close() (err error) {
 
 func (s *Session) CloseWithError(err error) {
 	s.once.Do(func() {
+		s.logger.Info("closed", "err", err)
 		_ = s.client.WritePacket(&packet.Disconnect{Message: err.Error()})
 		_ = s.client.Close()
 		s.processor.ProcessDisconnection(NewContext())
