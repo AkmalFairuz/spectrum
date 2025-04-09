@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -307,8 +308,9 @@ func (s *Session) Close() (err error) {
 
 func (s *Session) CloseWithError(err error) {
 	s.once.Do(func() {
-		s.logger.Info("closed", "err", err)
-		_ = s.client.WritePacket(&packet.Disconnect{Message: err.Error()})
+		errorID := uuid.New().String()[:8]
+		s.logger.Info("closed", "err_id", errorID, "err", err)
+		_ = s.client.WritePacket(&packet.Disconnect{Message: "error id: " + errorID})
 		_ = s.client.Close()
 		s.processor.ProcessDisconnection(NewContext())
 		s.serverMu.RLock()
