@@ -100,7 +100,7 @@ func (s *Session) LoginContext(ctx context.Context) (err error) {
 		return err
 	}
 
-	conn, err := s.dial(ctx, serverAddr)
+	conn, err := s.dial(ctx, serverAddr, true)
 	if err != nil {
 		s.logger.Debug("dialer failed", "err", err)
 		return err
@@ -120,7 +120,7 @@ func (s *Session) LoginContext(ctx context.Context) (err error) {
 		return err
 	}
 	go handleServer(s)
-	go handleClient(s)
+	go handleClient(s, true)
 	go handleLatency(s, s.opts.LatencyInterval)
 	s.registry.AddSession(identityData.XUID, s)
 	s.logger.Info("logged in session")
@@ -172,7 +172,7 @@ func (s *Session) TransferContext(ctx context.Context, addr string) (err error) 
 		}
 	}()
 
-	conn, err := s.dial(ctx, addr)
+	conn, err := s.dial(ctx, addr, false)
 	if err != nil {
 		s.logger.Debug("dialer failed", "err", err)
 		return err
@@ -321,7 +321,7 @@ func (s *Session) CloseWithError(err error) {
 
 // dial dials the specified server address and returns a new server.Conn instance.
 // The provided context is used to manage timeouts and cancellations during the dialing process.
-func (s *Session) dial(ctx context.Context, addr string) (*server.Conn, error) {
+func (s *Session) dial(ctx context.Context, addr string, initialServer bool) (*server.Conn, error) {
 	select {
 	case <-s.ctx.Done():
 		return nil, errors.New("session is closed")
@@ -332,7 +332,7 @@ func (s *Session) dial(ctx context.Context, addr string) (*server.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return server.NewConn(conn, s.client, s.logger.With("addr", addr), s.opts.SyncProtocol, s.opts.Token), nil
+	return server.NewConn(conn, s.client, s.logger.With("addr", addr), s.opts.SyncProtocol, s.opts.Token, initialServer), nil
 }
 
 // fallback attempts to transfer the session to a fallback server provided by the discovery.

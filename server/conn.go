@@ -62,11 +62,14 @@ type Conn struct {
 
 	connected chan struct{}
 	once      sync.Once
+
+	initialServer bool
+	ready         atomic.Bool
 }
 
 // NewConn creates a new Conn instance using the provided io.ReadWriteCloser.
 // It is used for reading and writing packets to the underlying connection.
-func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logger, syncProtocol bool, token string) *Conn {
+func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logger, syncProtocol bool, token string, initialServer bool) *Conn {
 	var proto minecraft.Protocol
 	if syncProtocol {
 		proto = client.Proto()
@@ -90,6 +93,8 @@ func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logge
 		header:   &packet.Header{},
 
 		connected: make(chan struct{}),
+
+		initialServer: initialServer,
 	}
 	c.ctx, c.cancelFunc = context.WithCancelCause(client.Context())
 	go func() {
@@ -490,10 +495,29 @@ func (c *Conn) handleChunkRadiusUpdated(pk *packet.ChunkRadiusUpdated) error {
 // it responds to the server with a packet.SetLocalPlayerAsInitialised to finalize the connection sequence and spawn the player.
 func (c *Conn) handlePlayStatus(pk *packet.PlayStatus) error {
 	c.deferPacket(pk)
-	if err := c.WritePacket(&packet.SetLocalPlayerAsInitialised{EntityRuntimeID: c.runtimeID}); err != nil {
-		return err
+	if !c.initialServer || c.ready.Load() {
+		if err := c.SendSetLocalPlayerAsInitialized(); err != nil {
+			return err
+		}
 	}
 	close(c.connected)
 	c.logger.Debug("received play_status, finalizing connection sequence")
 	return nil
+}
+
+// SetReady ...
+func (c *Conn) SetReady() {
+	if !c.ready.CompareAndSwap(false, true) {
+		return
+	}
+	if c.initialServer {
+		if err := c.SendSetLocalPlayerAsInitialized(); err != nil {
+			c.logger.Error("failed to send SetLocalPlayerAsInitialized", "err", err)
+		}
+	}
+}
+
+// SendSetLocalPlayerAsInitialized sends a SetLocalPlayerAsInitialized packet to the server.
+func (c *Conn) SendSetLocalPlayerAsInitialized() error {
+	return c.WritePacket(&packet.SetLocalPlayerAsInitialised{EntityRuntimeID: c.runtimeID})
 }

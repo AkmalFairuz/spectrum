@@ -114,7 +114,7 @@ loop:
 }
 
 // handleClient continuously reads packets from the client and forwards them to the server.
-func handleClient(s *Session) {
+func handleClient(s *Session, initialServer bool) {
 	header := &packet.Header{}
 	pool := s.client.Proto().Packets(true)
 	var shieldID int32
@@ -141,7 +141,7 @@ loop:
 			break loop
 		}
 
-		if err := handleClientPacket(s, header, pool, shieldID, payload); err != nil {
+		if err := handleClientPacket(s, header, pool, shieldID, payload, initialServer); err != nil {
 			s.Server().CloseWithError(fmt.Errorf("failed to write packet to server: %w", err))
 		}
 	}
@@ -168,7 +168,7 @@ loop:
 }
 
 // handleClientPacket processes and forwards the provided packet from the client to the server.
-func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shieldID int32, payload []byte) (err error) {
+func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shieldID int32, payload []byte, initialServer bool) (err error) {
 	ctx := NewContext()
 	buf := bytes.NewBuffer(payload)
 	if err := header.Read(buf); err != nil {
@@ -203,6 +203,11 @@ func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shi
 		}
 
 		for _, latest := range s.client.Proto().ConvertToLatest(pk, s.client) {
+			switch pk.(type) {
+			case *packet.SetLocalPlayerAsInitialised:
+				s.Server().SetReady()
+				continue
+			}
 			if err := s.Server().WritePacket(latest); err != nil {
 				return err
 			}
