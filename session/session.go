@@ -119,8 +119,10 @@ func (s *Session) LoginContext(ctx context.Context) (err error) {
 		s.logger.Debug("startgame sequence failed", "err", err)
 		return err
 	}
+
+	conn.SetReady()
 	go handleServer(s)
-	go handleClient(s, true)
+	go handleClient(s)
 	go handleLatency(s, s.opts.LatencyInterval)
 	s.registry.AddSession(identityData.XUID, s)
 	s.logger.Info("logged in session")

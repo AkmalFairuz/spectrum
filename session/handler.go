@@ -114,7 +114,7 @@ loop:
 }
 
 // handleClient continuously reads packets from the client and forwards them to the server.
-func handleClient(s *Session, initialServer bool) {
+func handleClient(s *Session) {
 	header := &packet.Header{}
 	pool := s.client.Proto().Packets(true)
 	var shieldID int32
@@ -141,7 +141,7 @@ loop:
 			break loop
 		}
 
-		if err := handleClientPacket(s, header, pool, shieldID, payload, initialServer); err != nil {
+		if err := handleClientPacket(s, header, pool, shieldID, payload); err != nil {
 			s.Server().CloseWithError(fmt.Errorf("failed to write packet to server: %w", err))
 		}
 	}
@@ -168,14 +168,14 @@ loop:
 }
 
 // handleClientPacket processes and forwards the provided packet from the client to the server.
-func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shieldID int32, payload []byte, initialServer bool) (err error) {
-	ctx := NewContext()
+func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shieldID int32, payload []byte) (err error) {
 	buf := bytes.NewBuffer(payload)
 	if err := header.Read(buf); err != nil {
 		return errors.New("failed to decode header")
 	}
 
 	if _, ok := s.clientDecode[header.PacketID]; !ok {
+		ctx := NewContext()
 		s.processor.ProcessClientEncoded(ctx, &payload)
 		if !ctx.Cancelled() {
 			return s.Server().Write(payload)
@@ -196,21 +196,18 @@ func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shi
 
 	pk := factory()
 	pk.Marshal(s.client.Proto().NewReader(buf, shieldID, true))
-	s.processor.ProcessClient(ctx, &pk)
-	if !ctx.Cancelled() {
-		if s.opts.SyncProtocol {
-			return s.Server().WritePacket(pk)
-		}
+	if s.opts.SyncProtocol {
+		return s.Server().WritePacket(pk)
+	}
 
-		for _, latest := range s.client.Proto().ConvertToLatest(pk, s.client) {
-			switch latest.(type) {
-			case *packet.SetLocalPlayerAsInitialised:
-				s.Server().SetReady()
-				continue
-			}
-			if err := s.Server().WritePacket(latest); err != nil {
-				return err
-			}
+	for _, latest := range s.client.Proto().ConvertToLatest(pk, s.client) {
+		ctx := NewContext()
+		s.processor.ProcessClient(ctx, &latest)
+		if ctx.Cancelled() {
+			continue
+		}
+		if err := s.Server().WritePacket(latest); err != nil {
+			return err
 		}
 	}
 	return
