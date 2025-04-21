@@ -17,6 +17,8 @@ func NewReader(r io.Reader) *Reader {
 	return &Reader{r: r}
 }
 
+const maxPacketLen = 1024 * 1024 * 6 // 6 MB
+
 // ReadPacket reads a packet from the underlying io.Reader.
 // It first reads the length of the packet as an uint32 in big-endian order,
 // then reads the actual packet data of that length.
@@ -24,6 +26,10 @@ func (r *Reader) ReadPacket() ([]byte, error) {
 	var length uint32
 	if err := binary.Read(r.r, binary.BigEndian, &length); err != nil {
 		return nil, fmt.Errorf("failed to read packet length: %w", err)
+	}
+
+	if length > maxPacketLen {
+		return nil, fmt.Errorf("packet length exceeds maximum allowed, got %d, max %d", length, maxPacketLen)
 	}
 
 	pk := make([]byte, length)
