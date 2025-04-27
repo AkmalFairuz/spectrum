@@ -46,8 +46,10 @@ func (q *QUIC) Dial(ctx context.Context, addr string) (io.ReadWriteCloser, error
 			},
 			&quic.Config{
 				MaxIdleTimeout:                 time.Second * 10,
-				InitialStreamReceiveWindow:     1024 * 1024 * 10,
-				InitialConnectionReceiveWindow: 1024 * 1024 * 10,
+				InitialStreamReceiveWindow:     1024 * 1024 * 8,
+				InitialConnectionReceiveWindow: 1024 * 1024 * 8,
+				MaxIncomingUniStreams:          200,
+				MaxIncomingStreams:             200,
 				KeepAlivePeriod:                0,
 				InitialPacketSize:              1350,
 				Tracer:                         qlog.DefaultConnectionTracer,
