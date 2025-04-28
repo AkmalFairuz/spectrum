@@ -49,6 +49,8 @@ type Session struct {
 	clientDecode map[uint32]struct{}
 
 	clientFlusher chan struct{}
+
+	queuedPacket chan []byte
 }
 
 // NewSession creates a new Session instance using the provided minecraft.Conn.
@@ -70,6 +72,8 @@ func NewSession(client *minecraft.Conn, logger *slog.Logger, registry *Registry,
 		clientDecode: opts.ClientDecodeAsMap(),
 
 		clientFlusher: make(chan struct{}),
+
+		queuedPacket: make(chan []byte, 256),
 	}
 	s.ctx, s.cancelFunc = context.WithCancelCause(client.Context())
 	go handleFlusher(s)
@@ -166,11 +170,9 @@ func (s *Session) TransferContext(ctx context.Context, addr string) (err error) 
 		return errors.New("already connected to this server")
 	}
 
-	s.serverMu.Lock()
 	defer func() {
 		if err != nil {
 			s.sendMetadata(false)
-			s.serverMu.Unlock()
 			s.processor.ProcessTransferFailure(NewContext(), &s.serverAddr, &addr)
 		}
 	}()
@@ -188,7 +190,10 @@ func (s *Session) TransferContext(ctx context.Context, addr string) (err error) 
 		return err
 	}
 
+	s.serverMu.Lock()
 	_ = s.serverConn.Close()
+	s.serverConn = conn
+	s.serverMu.Unlock()
 	serverGameData := conn.GameData()
 	s.animation.Play(s.client, serverGameData)
 	chunk := emptyChunk(serverGameData.Dimension)
@@ -219,12 +224,9 @@ func (s *Session) TransferContext(ctx context.Context, addr string) (err error) 
 	_ = s.client.WritePacket(&packet.SetPlayerGameType{GameType: serverGameData.PlayerGameMode})
 	_ = s.client.WritePacket(&packet.GameRulesChanged{GameRules: serverGameData.GameRules})
 	_ = s.client.Flush()
-	time.Sleep(time.Millisecond * 500)
 	origin := s.serverAddr
 	s.animation.Clear(s.client, serverGameData)
 	s.serverAddr = addr
-	s.serverConn = conn
-	s.serverMu.Unlock()
 	s.processor.ProcessPostTransfer(NewContext(), &origin, &addr)
 	s.logger.Debug("transferred session", "origin", origin, "target", addr)
 	return nil
