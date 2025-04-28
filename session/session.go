@@ -206,9 +206,6 @@ func (s *Session) TransferContext(ctx context.Context, addr string) (err error) 
 		}
 	}
 	s.tracker.clearAll(s)
-
-	time.Sleep(time.Millisecond * 250) // intentionally slow down the transfer to fix dim animation
-
 	_ = s.client.WritePacket(&packet.MovePlayer{
 		EntityRuntimeID: serverGameData.EntityRuntimeID,
 		Position:        serverGameData.PlayerPosition,
@@ -221,6 +218,8 @@ func (s *Session) TransferContext(ctx context.Context, addr string) (err error) 
 	_ = s.client.WritePacket(&packet.SetDifficulty{Difficulty: uint32(serverGameData.Difficulty)})
 	_ = s.client.WritePacket(&packet.SetPlayerGameType{GameType: serverGameData.PlayerGameMode})
 	_ = s.client.WritePacket(&packet.GameRulesChanged{GameRules: serverGameData.GameRules})
+	_ = s.client.Flush()
+	time.Sleep(time.Millisecond * 500)
 	origin := s.serverAddr
 	s.animation.Clear(s.client, serverGameData)
 	s.serverAddr = addr
