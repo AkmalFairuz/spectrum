@@ -63,13 +63,19 @@ type Conn struct {
 	connected chan struct{}
 	once      sync.Once
 
-	initialServer bool
-	ready         atomic.Bool
+	ready atomic.Bool
+
+	connectOptions ConnectOptions
+}
+
+type ConnectOptions struct {
+	InitialServer bool
+	Args          []string
 }
 
 // NewConn creates a new Conn instance using the provided io.ReadWriteCloser.
 // It is used for reading and writing packets to the underlying connection.
-func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logger, syncProtocol bool, token string, initialServer bool) *Conn {
+func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logger, syncProtocol bool, token string, opt ConnectOptions) *Conn {
 	var proto minecraft.Protocol
 	if syncProtocol {
 		proto = client.Proto()
@@ -94,7 +100,7 @@ func NewConn(conn io.ReadWriteCloser, client *minecraft.Conn, logger *slog.Logge
 
 		connected: make(chan struct{}),
 
-		initialServer: initialServer,
+		connectOptions: opt,
 	}
 	c.ctx, c.cancelFunc = context.WithCancelCause(client.Context())
 	go func() {
@@ -369,7 +375,8 @@ func (c *Conn) sendConnectionRequest() error {
 		Token:             c.token,
 		ClientData:        clientData,
 		IdentityData:      identityData,
-		InitialConnection: c.initialServer,
+		InitialConnection: c.connectOptions.InitialServer,
+		Args:              c.connectOptions.Args,
 	})
 	if err != nil {
 		return err
@@ -496,7 +503,7 @@ func (c *Conn) handleChunkRadiusUpdated(pk *packet.ChunkRadiusUpdated) error {
 // it responds to the server with a packet.SetLocalPlayerAsInitialised to finalize the connection sequence and spawn the player.
 func (c *Conn) handlePlayStatus(pk *packet.PlayStatus) error {
 	c.deferPacket(pk)
-	if !c.initialServer || c.ready.Load() {
+	if !c.connectOptions.InitialServer || c.ready.Load() {
 		if err := c.SendSetLocalPlayerAsInitialized(); err != nil {
 			return err
 		}
@@ -511,7 +518,7 @@ func (c *Conn) SetReady() {
 	if !c.ready.CompareAndSwap(false, true) {
 		return
 	}
-	if c.initialServer {
+	if c.connectOptions.InitialServer {
 		if err := c.SendSetLocalPlayerAsInitialized(); err != nil {
 			c.logger.Error("failed to send SetLocalPlayerAsInitialized", "err", err)
 		}
