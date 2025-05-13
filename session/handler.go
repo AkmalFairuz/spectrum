@@ -84,7 +84,7 @@ loop:
 			case *spectrumpacket.Latency:
 				s.latency.Store(pk.Latency)
 			case *spectrumpacket.Transfer:
-				if err := s.Transfer(pk.Addr); err != nil {
+				if err := s.Transfer(TransferOptions{Address: pk.Addr, Args: pk.Args}); err != nil {
 					logError(s, "failed to transfer", err)
 				}
 			default:
