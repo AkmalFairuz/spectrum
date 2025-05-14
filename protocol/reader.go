@@ -17,7 +17,7 @@ func NewReader(r io.Reader) *Reader {
 	return &Reader{r: r}
 }
 
-const maxPacketLen = 1024 * 1024 * 6 // 6 MB
+const maxPacketLen = 1024 * 1024 * 16 // 10 MB
 
 // ReadPacket reads a packet from the underlying io.Reader.
 // It first reads the length of the packet as an uint32 in big-endian order,
