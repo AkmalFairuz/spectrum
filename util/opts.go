@@ -35,7 +35,7 @@ func DefaultOpts() *Opts {
 	return &Opts{
 		Addr:            ":19132",
 		AutoLogin:       true,
-		LatencyInterval: 3000,
+		LatencyInterval: 2000,
 		ShutdownMessage: "Spectrum closed.",
 		SyncProtocol:    false,
 	}

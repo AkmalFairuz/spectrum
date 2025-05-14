@@ -11,6 +11,8 @@ type Latency struct {
 	Latency int64
 	// Timestamp is the timestamp (in milliseconds) when the latency measurement was sent.
 	Timestamp int64
+	// PacketLoss ...
+	ClientPacketLoss float32
 }
 
 // ID ...
@@ -22,4 +24,5 @@ func (pk *Latency) ID() uint32 {
 func (pk *Latency) Marshal(io protocol.IO) {
 	io.Int64(&pk.Latency)
 	io.Int64(&pk.Timestamp)
+	io.Float32(&pk.ClientPacketLoss)
 }

@@ -32,3 +32,5 @@ require (
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
 )
+
+replace github.com/sandertv/go-raknet => github.com/akmalfairuz/go-raknet v0.0.0-20250514033838-483db834ea38

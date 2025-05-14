@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/sandertv/go-raknet"
 	"log/slog"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/cooldogedev/spectrum/server"
 	"github.com/cooldogedev/spectrum/session/animation"
@@ -25,7 +28,8 @@ type Session struct {
 	ctx        context.Context
 	cancelFunc context.CancelCauseFunc
 
-	client *minecraft.Conn
+	client           *minecraft.Conn
+	rakNetClientConn *raknet.Conn
 
 	serverAddr string
 	serverConn *server.Conn
@@ -56,7 +60,8 @@ type Session struct {
 // NewSession creates a new Session instance using the provided minecraft.Conn.
 func NewSession(client *minecraft.Conn, logger *slog.Logger, registry *Registry, discovery server.Discovery, opts util.Opts, transport transport.Transport) *Session {
 	s := &Session{
-		client: client,
+		client:           client,
+		rakNetClientConn: rakNetClientConn(client),
 
 		logger:   logger,
 		registry: registry,
@@ -280,6 +285,11 @@ func (s *Session) Client() *minecraft.Conn {
 	return s.client
 }
 
+// RakNetClientConn returns the raknet client connection.
+func (s *Session) RakNetClientConn() *raknet.Conn {
+	return s.rakNetClientConn
+}
+
 // Server returns the current server connection.
 func (s *Session) Server() *server.Conn {
 	s.serverMu.RLock()
@@ -379,4 +389,11 @@ func (s *Session) sendMetadata(noAI bool) {
 		EntityRuntimeID: s.client.GameData().EntityRuntimeID,
 		EntityMetadata:  metadata,
 	})
+}
+
+func rakNetClientConn(conn *minecraft.Conn) *raknet.Conn {
+	rv := reflect.ValueOf(conn).Elem()
+	f := rv.FieldByName("conn")
+	ret := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
+	return ret.Interface().(*raknet.Conn)
 }

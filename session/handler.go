@@ -163,7 +163,7 @@ loop:
 			s.CloseWithError(context.Cause(s.ctx))
 			break loop
 		case <-ticker.C:
-			if err := s.Server().WritePacket(&spectrumpacket.Latency{Latency: s.client.Latency().Milliseconds() * 2, Timestamp: time.Now().UnixMilli()}); err != nil {
+			if err := s.Server().WritePacket(&spectrumpacket.Latency{Latency: s.client.Latency().Milliseconds() * 2, Timestamp: time.Now().UnixMilli(), ClientPacketLoss: float32(s.RakNetClientConn().PacketLossPercentage())}); err != nil {
 				logError(s, "failed to write latency packet", err)
 			}
 		}
