@@ -13,6 +13,12 @@ import (
 
 // handleServer continuously reads packets from the server and forwards them to the client.
 func handleServer(s *Session) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.CloseWithError(fmt.Errorf("panic while handling server packets: %v", r))
+			logError(s, "panic while handling server packets", fmt.Errorf("%v", r))
+		}
+	}()
 loop:
 	for {
 		select {
@@ -118,6 +124,13 @@ loop:
 
 // handleClient continuously reads packets from the client and forwards them to the server.
 func handleClient(s *Session) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.CloseWithError(fmt.Errorf("panic while handling client packets: %v", r))
+			logError(s, "panic while handling client packets", fmt.Errorf("%v", r))
+		}
+	}()
+
 	header := &packet.Header{}
 	pool := s.client.Proto().Packets(true)
 	var shieldID int32
