@@ -376,6 +376,7 @@ func (c *Conn) sendConnectionRequest() error {
 		ClientData:        clientData,
 		IdentityData:      identityData,
 		InitialConnection: c.connectOptions.InitialServer,
+		ClientProtocol:    c.client.Proto().ID(),
 		Args:              c.connectOptions.Args,
 	})
 	if err != nil {
