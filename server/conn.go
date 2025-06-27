@@ -389,7 +389,9 @@ func (c *Conn) expect(ids ...uint32) {
 
 // sendConnectionRequest initiates the connection sequence by sending a ConnectionRequest packet to the underlying connection.
 func (c *Conn) sendConnectionRequest() error {
-	clientData, err := json.Marshal(c.client.ClientData())
+	cData := c.client.ClientData()
+	cData.SkinGeometry = ""
+	clientData, err := json.Marshal(cData)
 	if err != nil {
 		return err
 	}
