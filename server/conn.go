@@ -418,7 +418,7 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 	cData.SkinID = ""
 
 	parsedSkinData, parsedSkinDataErr := base64.StdEncoding.DecodeString(cData.SkinData)
-	if !((cData.SkinImageHeight == 128 && cData.SkinImageWidth == 128) || (cData.SkinImageHeight == 64 && cData.SkinImageWidth == 64)) || parsedSkinDataErr != nil || cData.SkinImageHeight*cData.SkinImageWidth != len(parsedSkinData) {
+	if !((cData.SkinImageHeight == 128 && cData.SkinImageWidth == 128) || (cData.SkinImageHeight == 64 && cData.SkinImageWidth == 64)) || parsedSkinDataErr != nil || cData.SkinImageHeight*cData.SkinImageWidth*4 != len(parsedSkinData) {
 		cData.SkinImageHeight = 0
 		cData.SkinImageWidth = 0
 		cData.SkinData = ""
