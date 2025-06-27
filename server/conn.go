@@ -410,7 +410,7 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 		skinResourcePatch.Geometry.Default = "geometry.humanoid.custom"
 	}
 	encodedSkinResourcePatch, _ := json.Marshal(skinResourcePatch)
-	cData.SkinResourcePatch = string(encodedSkinResourcePatch)
+	cData.SkinResourcePatch = base64.StdEncoding.EncodeToString(encodedSkinResourcePatch)
 
 	cData.PersonaSkin = false
 	cData.AnimatedImageData = []login.SkinAnimation{}
