@@ -157,6 +157,10 @@ func (c *Conn) WritePacket(pk packet.Packet) error {
 
 // WritePackets encodes and writes multiple packets to the underlying connection.
 func (c *Conn) WritePackets(packets []packet.Packet) error {
+	if len(packets) == 0 {
+		return nil
+	}
+
 	c.writerMu.Lock()
 	defer c.writerMu.Unlock()
 
@@ -188,6 +192,7 @@ func (c *Conn) WritePackets(packets []packet.Packet) error {
 		if _, err := buf.Write(buf2.Bytes()); err != nil {
 			return err
 		}
+		buf2.Reset()
 	}
 
 	flags := byte(0)

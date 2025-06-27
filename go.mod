@@ -15,6 +15,7 @@ require (
 )
 
 require (
+	github.com/df-mc/atomic v1.10.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
@@ -35,6 +36,6 @@ require (
 	golang.org/x/tools v0.31.0 // indirect
 )
 
-replace github.com/sandertv/go-raknet => github.com/akmalfairuz/go-raknet v0.0.0-20250514033838-483db834ea38
+replace github.com/sandertv/go-raknet => github.com/akmalfairuz/go-raknet v0.0.0-20250621170244-72978bb748bb
 
-replace github.com/sandertv/gophertunnel => github.com/kuduga/gophertunnel v0.0.0-20250627125723-e1be9218cb40
+replace github.com/sandertv/gophertunnel => github.com/kuduga/gophertunnel v0.0.0-20250627133735-0342a1700036
