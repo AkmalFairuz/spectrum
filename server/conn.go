@@ -3,10 +3,12 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	protocol2 "github.com/sandertv/gophertunnel/minecraft/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"io"
 	"log/slog"
 	"net"
@@ -387,10 +389,47 @@ func (c *Conn) expect(ids ...uint32) {
 	c.expectedIds.Store(ids)
 }
 
+func sanitizeClientData(cData login.ClientData) login.ClientData {
+	cData.SkinGeometry = ""
+	cData.SkinAnimationData = ""
+	cData.CapeData = ""
+	cData.CapeID = ""
+	cData.CapeImageHeight = 0
+	cData.CapeImageWidth = 0
+
+	var skinResourcePatch struct {
+		Geometry struct {
+			Default string `json:"default"`
+		} `json:"geometry"`
+	}
+	if err := json.Unmarshal([]byte(cData.SkinResourcePatch), &skinResourcePatch); err == nil {
+		if skinResourcePatch.Geometry.Default != "geometry.humanoid.custom" && skinResourcePatch.Geometry.Default != "geometry.humanoid.customSlim" {
+			skinResourcePatch.Geometry.Default = "geometry.humanoid.custom"
+		}
+	} else {
+		skinResourcePatch.Geometry.Default = "geometry.humanoid.custom"
+	}
+	encodedSkinResourcePatch, _ := json.Marshal(skinResourcePatch)
+	cData.SkinResourcePatch = string(encodedSkinResourcePatch)
+
+	cData.PersonaSkin = false
+	cData.AnimatedImageData = []login.SkinAnimation{}
+	cData.PersonaPieces = []login.PersonaPiece{}
+	cData.SkinID = ""
+
+	parsedSkinData, parsedSkinDataErr := base64.StdEncoding.DecodeString(cData.SkinData)
+	if !((cData.SkinImageHeight == 128 && cData.SkinImageWidth == 128) || (cData.SkinImageHeight == 64 && cData.SkinImageWidth == 64)) || parsedSkinDataErr != nil || cData.SkinImageHeight*cData.SkinImageWidth != len(parsedSkinData) {
+		cData.SkinImageHeight = 0
+		cData.SkinImageWidth = 0
+		cData.SkinData = ""
+	}
+
+	return cData
+}
+
 // sendConnectionRequest initiates the connection sequence by sending a ConnectionRequest packet to the underlying connection.
 func (c *Conn) sendConnectionRequest() error {
-	cData := c.client.ClientData()
-	cData.SkinGeometry = ""
+	cData := sanitizeClientData(c.client.ClientData())
 	clientData, err := json.Marshal(cData)
 	if err != nil {
 		return err
