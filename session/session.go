@@ -332,7 +332,7 @@ func (s *Session) CloseWithError(err error) {
 		}
 		s.serverMu.RUnlock()
 		s.registry.RemoveSession(s.client.IdentityData().XUID)
-		s.logger.Info("closed session")
+		s.logger.Error("closed session", "error", err)
 		close(s.clientFlusher)
 	})
 }
