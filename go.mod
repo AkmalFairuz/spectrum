@@ -9,6 +9,7 @@ require (
 	github.com/go-gl/mathgl v1.2.0
 	github.com/golang/snappy v1.0.0
 	github.com/quic-go/quic-go v0.50.1
+	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
 	github.com/sandertv/gophertunnel v1.45.1
 	github.com/scylladb/go-set v1.0.2
 )
@@ -22,7 +23,6 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/muhammadmuzzammil1998/jsonc v1.0.0 // indirect
 	github.com/onsi/ginkgo/v2 v2.23.3 // indirect
-	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
@@ -37,4 +37,4 @@ require (
 
 replace github.com/sandertv/go-raknet => github.com/akmalfairuz/go-raknet v0.0.0-20250514033838-483db834ea38
 
-replace github.com/sandertv/gophertunnel => github.com/kuduga/gophertunnel v0.0.0-20250627073020-97310d8f9772
+replace github.com/sandertv/gophertunnel => github.com/kuduga/gophertunnel v0.0.0-20250627125723-e1be9218cb40
