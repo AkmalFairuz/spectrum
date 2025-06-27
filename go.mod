@@ -1,6 +1,8 @@
 module github.com/cooldogedev/spectrum
 
-go 1.23.3
+go 1.24
+
+toolchain go1.24.4
 
 require (
 	github.com/cooldogedev/spectral v0.0.5
@@ -13,7 +15,7 @@ require (
 
 require (
 	github.com/francoispqt/gojay v1.2.13 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -34,3 +36,5 @@ require (
 )
 
 replace github.com/sandertv/go-raknet => github.com/akmalfairuz/go-raknet v0.0.0-20250514033838-483db834ea38
+
+replace github.com/sandertv/gophertunnel => github.com/kuduga/gophertunnel v0.0.0-20250627073020-97310d8f9772

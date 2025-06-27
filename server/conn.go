@@ -152,6 +152,11 @@ func (c *Conn) ReadPacket() (any, error) {
 
 // WritePacket encodes and writes the provided packet to the underlying connection.
 func (c *Conn) WritePacket(pk packet.Packet) error {
+	return c.WritePackets([]packet.Packet{pk})
+}
+
+// WritePackets encodes and writes multiple packets to the underlying connection.
+func (c *Conn) WritePackets(packets []packet.Packet) error {
 	c.writerMu.Lock()
 	defer c.writerMu.Unlock()
 
@@ -161,11 +166,30 @@ func (c *Conn) WritePacket(pk packet.Packet) error {
 		internal.BufferPool.Put(buf)
 	}()
 
-	c.header.PacketID = pk.ID()
-	if err := c.header.Write(buf); err != nil {
+	if err := protocol2.WriteVaruint32(buf, uint32(len(packets))); err != nil {
 		return err
 	}
-	pk.Marshal(c.protocol.NewWriter(buf, c.shieldID))
+
+	buf2 := internal.BufferPool.Get().(*bytes.Buffer)
+	defer func() {
+		buf2.Reset()
+		internal.BufferPool.Put(buf2)
+	}()
+
+	for _, pk := range packets {
+		c.header.PacketID = pk.ID()
+		if err := c.header.Write(buf2); err != nil {
+			return err
+		}
+		pk.Marshal(c.protocol.NewWriter(buf2, c.shieldID))
+		if err := protocol2.WriteVaruint32(buf, uint32(buf2.Len())); err != nil {
+			return err
+		}
+		if _, err := buf.Write(buf2.Bytes()); err != nil {
+			return err
+		}
+	}
+
 	flags := byte(0)
 	decompressed := buf.Bytes()
 	if len(decompressed) > compressionThreshold {

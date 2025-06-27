@@ -1,7 +1,6 @@
 package session
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -131,16 +130,6 @@ func handleClient(s *Session) {
 		}
 	}()
 
-	header := &packet.Header{}
-	pool := s.client.Proto().Packets(true)
-	var shieldID int32
-	for _, item := range s.client.GameData().Items {
-		if item.Name == "minecraft:shield" {
-			shieldID = int32(item.RuntimeID)
-			break
-		}
-	}
-
 loop:
 	for {
 		select {
@@ -150,14 +139,14 @@ loop:
 		default:
 		}
 
-		payload, err := s.client.ReadBytes()
+		packets, err := s.client.ReadPackets()
 		if err != nil {
-			s.CloseWithError(fmt.Errorf("failed to read packet from client: %w", err))
-			logError(s, "failed to read packet from client", err)
+			s.CloseWithError(fmt.Errorf("failed to read packets from client: %w", err))
+			logError(s, "failed to read packets from client", err)
 			break loop
 		}
 
-		if err := handleClientPacket(s, header, pool, shieldID, payload); err != nil {
+		if err := handleClientPackets(s, packets); err != nil {
 			s.Server().CloseWithError(fmt.Errorf("failed to write packet to server: %w", err))
 		}
 	}
@@ -183,50 +172,12 @@ loop:
 	}
 }
 
-// handleClientPacket processes and forwards the provided packet from the client to the server.
-func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shieldID int32, payload []byte) (err error) {
-	buf := bytes.NewBuffer(payload)
-	if err := header.Read(buf); err != nil {
-		return errors.New("failed to decode header")
+// handleClientPackets processes and forwards the provided packet from the client to the server.
+func handleClientPackets(s *Session, packets []packet.Packet) (err error) {
+	if err := s.Server().WritePackets(packets); err != nil {
+		return err
 	}
-
-	if _, ok := s.clientDecode[header.PacketID]; !ok {
-		ctx := NewContext()
-		s.processor.ProcessClientEncoded(ctx, &payload)
-		if !ctx.Cancelled() {
-			return s.Server().Write(payload)
-		}
-		return
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic while decoding packet %v: %v", header.PacketID, r)
-		}
-	}()
-
-	factory, ok := pool[header.PacketID]
-	if !ok {
-		return fmt.Errorf("unknown packet %d", header.PacketID)
-	}
-
-	pk := factory()
-	pk.Marshal(s.client.Proto().NewReader(buf, shieldID, true))
-	if s.opts.SyncProtocol {
-		return s.Server().WritePacket(pk)
-	}
-
-	for _, latest := range s.client.Proto().ConvertToLatest(pk, s.client) {
-		ctx := NewContext()
-		s.processor.ProcessClient(ctx, &latest)
-		if ctx.Cancelled() {
-			continue
-		}
-		if err := s.Server().WritePacket(latest); err != nil {
-			return err
-		}
-	}
-	return
+	return nil
 }
 
 // handleFlusher ...
