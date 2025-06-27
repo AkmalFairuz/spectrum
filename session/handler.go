@@ -174,7 +174,16 @@ loop:
 
 // handleClientPackets processes and forwards the provided packet from the client to the server.
 func handleClientPackets(s *Session, packets []packet.Packet) (err error) {
-	if err := s.Server().WritePackets(packets); err != nil {
+	filtered := make([]packet.Packet, 0, len(packets))
+	for _, pk := range packets {
+		ctx := NewContext()
+		s.Processor().ProcessClient(ctx, &pk)
+		if ctx.Cancelled() {
+			continue
+		}
+		filtered = append(filtered, pk)
+	}
+	if err := s.Server().WritePackets(filtered); err != nil {
 		return err
 	}
 	return nil
