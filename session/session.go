@@ -254,10 +254,10 @@ func (s *Session) ClientGameData() minecraft.GameData {
 // WritePacketToClient ...
 func (s *Session) WritePacketToClient(pk packet.Packet) error {
 	if v, ok := s.Processor().(interface {
-		ProcessWritePacketToClient(ctx *Context, pk packet.Packet)
+		ProcessWritePacketToClient(ctx *Context, pk *packet.Packet)
 	}); ok {
 		ctx := NewContext()
-		v.ProcessWritePacketToClient(ctx, pk)
+		v.ProcessWritePacketToClient(ctx, &pk)
 		if ctx.Cancelled() {
 			return errors.New("packet write cancelled by processor")
 		}
