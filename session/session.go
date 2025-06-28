@@ -200,6 +200,11 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 	}
 
 	s.serverMu.Lock()
+	if v, ok := s.Processor().(interface {
+		ProcessSetServerConn(ctx *Context, srv *server.Conn)
+	}); ok {
+		v.ProcessSetServerConn(NewContext(), conn)
+	}
 	_ = s.serverConn.Close()
 	s.serverConn = conn
 	s.serverMu.Unlock()
