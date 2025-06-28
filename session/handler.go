@@ -116,6 +116,9 @@ loop:
 		}
 
 		if shouldFlush {
+			if v, ok := s.Processor().(interface{ ProcessEndOfBatch(ctx *Context) }); ok {
+				v.ProcessEndOfBatch(NewContext())
+			}
 			s.ClientFlush()
 		}
 	}
