@@ -19,8 +19,8 @@ type Fade struct {
 }
 
 // Play ...
-func (animation *Fade) Play(conn *minecraft.Conn, _ minecraft.GameData) {
-	_ = conn.WritePacket(&packet.CameraInstruction{
+func (animation *Fade) Play(conn Conn, _ minecraft.GameData) {
+	_ = conn.WritePacketToClient(&packet.CameraInstruction{
 		Fade: protocol.Option(protocol.CameraInstructionFade{
 			TimeData: protocol.Option(animation.Timing),
 			Colour:   protocol.Option(animation.Colour),

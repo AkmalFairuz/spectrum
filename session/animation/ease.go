@@ -26,9 +26,9 @@ type Ease struct {
 }
 
 // Play ...
-func (animation *Ease) Play(conn *minecraft.Conn, _ minecraft.GameData) {
+func (animation *Ease) Play(conn Conn, _ minecraft.GameData) {
 	animation.Sync(conn)
-	_ = conn.WritePacket(&packet.CameraInstruction{
+	_ = conn.WritePacketToClient(&packet.CameraInstruction{
 		Set: protocol.Option(protocol.CameraInstructionSet{
 			Preset: 0,
 			Ease: protocol.Option(protocol.CameraEase{
@@ -42,7 +42,7 @@ func (animation *Ease) Play(conn *minecraft.Conn, _ minecraft.GameData) {
 
 	time.Sleep(time.Millisecond * 300)
 	for i := 0; i < 4; i++ {
-		_ = conn.WritePacket(&packet.CameraInstruction{
+		_ = conn.WritePacketToClient(&packet.CameraInstruction{
 			Set: protocol.Option(protocol.CameraInstructionSet{
 				Preset: 0,
 				Ease: protocol.Option(protocol.CameraEase{
@@ -55,7 +55,7 @@ func (animation *Ease) Play(conn *minecraft.Conn, _ minecraft.GameData) {
 		})
 		time.Sleep(time.Millisecond * 300)
 		if i != 3 && animation.Flicker {
-			_ = conn.WritePacket(&packet.CameraInstruction{
+			_ = conn.WritePacketToClient(&packet.CameraInstruction{
 				Fade: protocol.Option(protocol.CameraInstructionFade{
 					TimeData: protocol.Option(protocol.CameraFadeTimeData{
 						FadeInDuration:  0.1,
@@ -72,10 +72,10 @@ func (animation *Ease) Play(conn *minecraft.Conn, _ minecraft.GameData) {
 }
 
 // Clear ....
-func (animation *Ease) Clear(conn *minecraft.Conn, serverGameData minecraft.GameData) {
+func (animation *Ease) Clear(conn Conn, serverGameData minecraft.GameData) {
 	go func() {
 		timing := animation.Timing
-		_ = conn.WritePacket(&packet.CameraInstruction{
+		_ = conn.WritePacketToClient(&packet.CameraInstruction{
 			Set: protocol.Option(protocol.CameraInstructionSet{
 				Preset: 0,
 				Ease: protocol.Option(protocol.CameraEase{
@@ -92,7 +92,7 @@ func (animation *Ease) Clear(conn *minecraft.Conn, serverGameData minecraft.Game
 		})
 
 		time.Sleep(time.Second * time.Duration(timing.FadeInDuration+timing.WaitDuration+timing.FadeOutDuration))
-		_ = conn.WritePacket(&packet.CameraInstruction{
+		_ = conn.WritePacketToClient(&packet.CameraInstruction{
 			Set: protocol.Option(protocol.CameraInstructionSet{
 				Preset: 0,
 				Ease: protocol.Option(protocol.CameraEase{
@@ -105,7 +105,7 @@ func (animation *Ease) Clear(conn *minecraft.Conn, serverGameData minecraft.Game
 		})
 
 		time.Sleep(time.Second * 3)
-		_ = conn.WritePacket(&packet.CameraInstruction{
+		_ = conn.WritePacketToClient(&packet.CameraInstruction{
 			Set: protocol.Option(protocol.CameraInstructionSet{
 				Preset: 0,
 				Ease: protocol.Option(protocol.CameraEase{
@@ -118,6 +118,6 @@ func (animation *Ease) Clear(conn *minecraft.Conn, serverGameData minecraft.Game
 		})
 
 		time.Sleep(time.Millisecond * 400)
-		_ = conn.WritePacket(&packet.CameraInstruction{Clear: protocol.Option(true)})
+		_ = conn.WritePacketToClient(&packet.CameraInstruction{Clear: protocol.Option(true)})
 	}()
 }

@@ -209,14 +209,14 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 	s.serverConn = conn
 	s.serverMu.Unlock()
 	serverGameData := conn.GameData()
-	s.animation.Play(s.client, serverGameData)
+	s.animation.Play(s, serverGameData)
 	chunk := emptyChunk(serverGameData.Dimension)
 	pos := serverGameData.PlayerPosition
 	chunkX := int32(pos.X()) >> 4
 	chunkZ := int32(pos.Z()) >> 4
 	for x := chunkX - 4; x <= chunkX+4; x++ {
 		for z := chunkZ - 4; z <= chunkZ+4; z++ {
-			_ = s.client.WritePacket(&packet.LevelChunk{
+			_ = s.WritePacketToClient(&packet.LevelChunk{
 				Dimension:     serverGameData.Dimension,
 				Position:      protocol.ChunkPos{x, z},
 				SubChunkCount: 1,
@@ -225,25 +225,54 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 		}
 	}
 	s.tracker.clearAll(s)
-	_ = s.client.WritePacket(&packet.MovePlayer{
+	_ = s.WritePacketToClient(&packet.MovePlayer{
 		EntityRuntimeID: serverGameData.EntityRuntimeID,
 		Position:        serverGameData.PlayerPosition,
 		Pitch:           serverGameData.Pitch,
 		Yaw:             serverGameData.Yaw,
 		Mode:            packet.MoveModeReset,
 	})
-	_ = s.client.WritePacket(&packet.LevelEvent{EventType: packet.LevelEventStopRaining, EventData: 10_000})
-	_ = s.client.WritePacket(&packet.LevelEvent{EventType: packet.LevelEventStopThunderstorm})
-	_ = s.client.WritePacket(&packet.SetDifficulty{Difficulty: uint32(serverGameData.Difficulty)})
-	_ = s.client.WritePacket(&packet.SetPlayerGameType{GameType: serverGameData.PlayerGameMode})
-	_ = s.client.WritePacket(&packet.GameRulesChanged{GameRules: serverGameData.GameRules})
+	_ = s.WritePacketToClient(&packet.LevelEvent{EventType: packet.LevelEventStopRaining, EventData: 10_000})
+	_ = s.WritePacketToClient(&packet.LevelEvent{EventType: packet.LevelEventStopThunderstorm})
+	_ = s.WritePacketToClient(&packet.SetDifficulty{Difficulty: uint32(serverGameData.Difficulty)})
+	_ = s.WritePacketToClient(&packet.SetPlayerGameType{GameType: serverGameData.PlayerGameMode})
+	_ = s.WritePacketToClient(&packet.GameRulesChanged{GameRules: serverGameData.GameRules})
 	_ = s.client.Flush()
 	origin := s.serverAddr
-	s.animation.Clear(s.client, serverGameData)
+	s.animation.Clear(s, serverGameData)
 	s.serverAddr = addr
 	s.processor.ProcessPostTransfer(NewContext(), &origin, &addr)
 	s.logger.Debug("transferred session", "origin", origin, "target", addr)
 	return nil
+}
+
+// ClientGameData returns the game data of the client.
+func (s *Session) ClientGameData() minecraft.GameData {
+	return s.client.GameData()
+}
+
+// WritePacketToClient ...
+func (s *Session) WritePacketToClient(pk packet.Packet) error {
+	if v, ok := s.Processor().(interface {
+		ProcessWritePacketToClient(ctx *Context, pk packet.Packet)
+	}); ok {
+		ctx := NewContext()
+		v.ProcessWritePacketToClient(ctx, pk)
+		if ctx.Cancelled() {
+			return errors.New("packet write cancelled by processor")
+		}
+	}
+	return s.client.WritePacket(pk)
+}
+
+// WritePacketToServer ...
+func (s *Session) WritePacketToServer(pk packet.Packet) error {
+	return s.WritePacketsToServer([]packet.Packet{pk})
+}
+
+// WritePacketsToServer ...
+func (s *Session) WritePacketsToServer(packets []packet.Packet) error {
+	return s.Server().WritePackets(packets)
 }
 
 // Animation returns the animation set to be played during server transfers.
@@ -328,7 +357,7 @@ func (s *Session) Close() (err error) {
 
 func (s *Session) CloseWithError(err error) {
 	s.once.Do(func() {
-		_ = s.client.WritePacket(&packet.Disconnect{Message: err.Error()})
+		_ = s.WritePacketToClient(&packet.Disconnect{Message: err.Error()})
 		_ = s.client.Close()
 		s.processor.ProcessDisconnection(NewContext())
 		s.serverMu.RLock()
@@ -387,7 +416,7 @@ func (s *Session) sendMetadata(noAI bool) {
 	}
 	metadata.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagBreathing)
 	metadata.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagHasGravity)
-	_ = s.client.WritePacket(&packet.SetActorData{
+	_ = s.WritePacketToClient(&packet.SetActorData{
 		EntityRuntimeID: s.client.GameData().EntityRuntimeID,
 		EntityMetadata:  metadata,
 	})

@@ -107,7 +107,7 @@ loop:
 					s.tracker.handlePacket(pk)
 				}
 
-				if err := s.client.WritePacket(pk); err != nil {
+				if err := s.WritePacketToClient(pk); err != nil {
 					s.CloseWithError(fmt.Errorf("failed to write packet to client: %w", err))
 					logError(s, "failed to write packet to client", err)
 					break loop
@@ -168,7 +168,7 @@ loop:
 			s.CloseWithError(context.Cause(s.ctx))
 			break loop
 		case <-ticker.C:
-			if err := s.Server().WritePacket(&spectrumpacket.Latency{Latency: s.client.Latency().Milliseconds() * 2, Timestamp: time.Now().UnixMilli(), ClientPacketLoss: float32(s.RakNetClientConn().PacketLossPercentage())}); err != nil {
+			if err := s.WritePacketToServer(&spectrumpacket.Latency{Latency: s.client.Latency().Milliseconds() * 2, Timestamp: time.Now().UnixMilli(), ClientPacketLoss: float32(s.RakNetClientConn().PacketLossPercentage())}); err != nil {
 				logError(s, "failed to write latency packet", err)
 			}
 		}
@@ -186,7 +186,7 @@ func handleClientPackets(s *Session, packets []packet.Packet) (err error) {
 		}
 		filtered = append(filtered, pk)
 	}
-	if err := s.Server().WritePackets(filtered); err != nil {
+	if err := s.WritePacketsToServer(filtered); err != nil {
 		return err
 	}
 	return nil

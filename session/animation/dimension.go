@@ -10,9 +10,9 @@ import (
 type Dimension struct{}
 
 // Play ...
-func (animation *Dimension) Play(conn *minecraft.Conn, serverGameData minecraft.GameData) {
+func (animation *Dimension) Play(conn Conn, serverGameData minecraft.GameData) {
 	var dimension int32
-	if conn.GameData().Dimension == packet.DimensionNether {
+	if conn.ClientGameData().Dimension == packet.DimensionNether {
 		dimension = packet.DimensionEnd
 	} else {
 		dimension = packet.DimensionNether
@@ -21,18 +21,18 @@ func (animation *Dimension) Play(conn *minecraft.Conn, serverGameData minecraft.
 }
 
 // Clear ...
-func (animation *Dimension) Clear(conn *minecraft.Conn, serverGameData minecraft.GameData) {
-	_ = conn.WritePacket(&packet.PlayStatus{Status: packet.PlayStatusPlayerSpawn})
+func (animation *Dimension) Clear(conn Conn, serverGameData minecraft.GameData) {
+	_ = conn.WritePacketToClient(&packet.PlayStatus{Status: packet.PlayStatusPlayerSpawn})
 	sendDimension(conn, serverGameData, packet.DimensionOverworld, true)
 }
 
 // sendDimension updates the player's dimension and optionally force-spawns them if playStatus is enabled.
-func sendDimension(conn *minecraft.Conn, serverGameData minecraft.GameData, dimension int32, playStatus bool) {
-	_ = conn.WritePacket(&packet.ChangeDimension{Dimension: dimension, Position: serverGameData.PlayerPosition})
-	_ = conn.WritePacket(&packet.StopSound{StopAll: true})
-	_ = conn.WritePacket(&packet.PlayerAction{ActionType: protocol.PlayerActionDimensionChangeDone})
+func sendDimension(conn Conn, serverGameData minecraft.GameData, dimension int32, playStatus bool) {
+	_ = conn.WritePacketToClient(&packet.ChangeDimension{Dimension: dimension, Position: serverGameData.PlayerPosition})
+	_ = conn.WritePacketToClient(&packet.StopSound{StopAll: true})
+	_ = conn.WritePacketToClient(&packet.PlayerAction{ActionType: protocol.PlayerActionDimensionChangeDone})
 	if playStatus {
-		_ = conn.WritePacket(&packet.PlayStatus{
+		_ = conn.WritePacketToClient(&packet.PlayStatus{
 			Status: packet.PlayStatusPlayerSpawn,
 		})
 	}
