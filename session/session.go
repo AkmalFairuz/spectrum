@@ -130,8 +130,8 @@ func (s *Session) LoginContext(ctx context.Context) (err error) {
 	}
 
 	conn.SetReady()
-	if v, ok := s.Processor().(interface{ HandleLoginSuccessful(ctx *Context) }); ok {
-		v.HandleLoginSuccessful(NewContext())
+	if v, ok := s.Processor().(interface{ ProcessLoginSuccessful(ctx *Context) }); ok {
+		v.ProcessLoginSuccessful(NewContext())
 	}
 	go handleServer(s)
 	go handleClient(s)
