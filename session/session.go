@@ -213,19 +213,22 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 	s.serverMu.Unlock()
 	serverGameData := conn.GameData()
 	s.animation.Play(s, serverGameData)
-	chunk := emptyChunk(serverGameData.Dimension)
-	pos := serverGameData.PlayerPosition
-	chunkX := int32(pos.X()) >> 4
-	chunkZ := int32(pos.Z()) >> 4
-	for x := chunkX - 4; x <= chunkX+4; x++ {
-		for z := chunkZ - 4; z <= chunkZ+4; z++ {
-			_ = s.WritePacketToClient(&packet.LevelChunk{
-				Dimension:       serverGameData.Dimension,
-				Position:        protocol.ChunkPos{x, z},
-				SubChunkCount:   protocol.SubChunkRequestModeLimited,
-				HighestSubChunk: 0,
-				RawPayload:      chunk,
-			})
+
+	const sendEmptyChunk = false
+	if sendEmptyChunk {
+		chunk := emptyChunk(serverGameData.Dimension)
+		pos := serverGameData.PlayerPosition
+		chunkX := int32(pos.X()) >> 4
+		chunkZ := int32(pos.Z()) >> 4
+		for x := chunkX - 4; x <= chunkX+4; x++ {
+			for z := chunkZ - 4; z <= chunkZ+4; z++ {
+				_ = s.WritePacketToClient(&packet.LevelChunk{
+					Dimension:     serverGameData.Dimension,
+					Position:      protocol.ChunkPos{x, z},
+					SubChunkCount: 1,
+					RawPayload:    chunk,
+				})
+			}
 		}
 	}
 	s.tracker.clearAll(s)
