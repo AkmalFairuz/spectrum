@@ -220,10 +220,11 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 	for x := chunkX - 4; x <= chunkX+4; x++ {
 		for z := chunkZ - 4; z <= chunkZ+4; z++ {
 			_ = s.WritePacketToClient(&packet.LevelChunk{
-				Dimension:     serverGameData.Dimension,
-				Position:      protocol.ChunkPos{x, z},
-				SubChunkCount: 1,
-				RawPayload:    chunk,
+				Dimension:       serverGameData.Dimension,
+				Position:        protocol.ChunkPos{x, z},
+				SubChunkCount:   protocol.SubChunkRequestModeLimited,
+				HighestSubChunk: 0,
+				RawPayload:      chunk,
 			})
 		}
 	}
