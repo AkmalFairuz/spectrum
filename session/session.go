@@ -214,7 +214,7 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 	serverGameData := conn.GameData()
 	s.animation.Play(s, serverGameData)
 
-	const sendEmptyChunk = false
+	const sendEmptyChunk = true
 	if sendEmptyChunk {
 		chunk := emptyChunk(serverGameData.Dimension)
 		pos := serverGameData.PlayerPosition
