@@ -80,7 +80,6 @@ func NewSession(client *minecraft.Conn, logger *slog.Logger, registry *Registry,
 		queuedPacket: make(chan []byte, 256),
 	}
 	s.ctx, s.cancelFunc = context.WithCancelCause(client.Context())
-	go handleFlusher(s)
 	return s
 }
 
@@ -350,10 +349,7 @@ func (s *Session) Disconnect(message string) {
 
 // ClientFlush ...
 func (s *Session) ClientFlush() {
-	select {
-	case s.clientFlusher <- struct{}{}:
-	default:
-	}
+	_ = s.Client().Flush()
 }
 
 // Close closes the session, including the server and client connections.
