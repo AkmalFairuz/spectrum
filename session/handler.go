@@ -118,8 +118,10 @@ loop:
 		if shouldFlush {
 			if v, ok := s.Processor().(interface{ ProcessEndOfBatch(ctx *Context) }); ok {
 				v.ProcessEndOfBatch(NewContext())
+				// ProcessEndOfBatch should call ClientFlush() internally
+			} else {
+				s.ClientFlush()
 			}
-			s.ClientFlush()
 		}
 	}
 }
