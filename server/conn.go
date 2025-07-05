@@ -405,6 +405,9 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 	if err := json.Unmarshal([]byte(cData.SkinResourcePatch), &skinResourcePatch); err == nil {
 		if skinResourcePatch.Geometry.Default != "geometry.humanoid.custom" && skinResourcePatch.Geometry.Default != "geometry.humanoid.customSlim" {
 			skinResourcePatch.Geometry.Default = "geometry.humanoid.custom"
+			cData.SkinImageWidth = 0
+			cData.SkinImageHeight = 0
+			cData.SkinData = ""
 		}
 	} else {
 		skinResourcePatch.Geometry.Default = "geometry.humanoid.custom"
