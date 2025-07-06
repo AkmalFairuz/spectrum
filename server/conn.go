@@ -402,16 +402,12 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 			Default string `json:"default"`
 		} `json:"geometry"`
 	}
-	if err := json.Unmarshal([]byte(cData.SkinResourcePatch), &skinResourcePatch); err == nil {
-		if skinResourcePatch.Geometry.Default != "geometry.humanoid.custom" && skinResourcePatch.Geometry.Default != "geometry.humanoid.customSlim" {
-			skinResourcePatch.Geometry.Default = "geometry.humanoid.custom"
-			cData.SkinImageWidth = 0
-			cData.SkinImageHeight = 0
-			cData.SkinData = ""
-		}
-	} else {
-		skinResourcePatch.Geometry.Default = "geometry.humanoid.custom"
+
+	skinResourcePatchBytes, err := base64.StdEncoding.DecodeString(cData.SkinResourcePatch)
+	if err == nil {
+		_ = json.Unmarshal(skinResourcePatchBytes, &skinResourcePatch)
 	}
+
 	encodedSkinResourcePatch, _ := json.Marshal(skinResourcePatch)
 	cData.SkinResourcePatch = base64.StdEncoding.EncodeToString(encodedSkinResourcePatch)
 
@@ -421,7 +417,7 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 	cData.SkinID = ""
 
 	parsedSkinData, parsedSkinDataErr := base64.StdEncoding.DecodeString(cData.SkinData)
-	if !((cData.SkinImageHeight == 128 && cData.SkinImageWidth == 128) || (cData.SkinImageHeight == 64 && cData.SkinImageWidth == 64)) || parsedSkinDataErr != nil || cData.SkinImageHeight*cData.SkinImageWidth*4 != len(parsedSkinData) {
+	if !((cData.SkinImageHeight == 128 && cData.SkinImageWidth == 128) || (cData.SkinImageHeight == 64 && cData.SkinImageWidth == 64)) || parsedSkinDataErr != nil || cData.SkinImageHeight*cData.SkinImageWidth*4 != len(parsedSkinData) || (skinResourcePatch.Geometry.Default != "geometry.humanoid.custom" && skinResourcePatch.Geometry.Default != "geometry.humanoid.customSlim") {
 		cData.SkinImageHeight = 0
 		cData.SkinImageWidth = 0
 		cData.SkinData = ""
