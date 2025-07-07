@@ -215,7 +215,7 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 
 	const sendEmptyChunk = true
 	if sendEmptyChunk {
-		chunk := emptyChunk(serverGameData.Dimension)
+		chunk, subChunkLen := emptyChunk(serverGameData.Dimension)
 		pos := serverGameData.PlayerPosition
 		chunkX := int32(pos.X()) >> 4
 		chunkZ := int32(pos.Z()) >> 4
@@ -224,7 +224,7 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 				_ = s.WritePacketToClient(&packet.LevelChunk{
 					Dimension:     serverGameData.Dimension,
 					Position:      protocol.ChunkPos{x, z},
-					SubChunkCount: 1,
+					SubChunkCount: uint32(subChunkLen),
 					RawPayload:    chunk,
 				})
 			}
