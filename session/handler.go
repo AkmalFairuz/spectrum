@@ -1,7 +1,6 @@
 package session
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -96,16 +95,6 @@ loop:
 
 // handleClient continuously reads packets from the client and forwards them to the server.
 func handleClient(s *Session) {
-	header := &packet.Header{}
-	pool := s.client.Proto().Packets(true)
-	var shieldID int32
-	for _, item := range s.client.GameData().Items {
-		if item.Name == "minecraft:shield" {
-			shieldID = int32(item.RuntimeID)
-			break
-		}
-	}
-
 loop:
 	for {
 		select {
@@ -115,14 +104,14 @@ loop:
 		default:
 		}
 
-		payload, err := s.client.ReadBytes()
+		pk, err := s.client.ReadPacket()
 		if err != nil {
 			s.CloseWithError(fmt.Errorf("failed to read packet from client: %w", err))
 			logError(s, "failed to read packet from client", err)
 			break loop
 		}
 
-		if err := handleClientPacket(s, header, pool, shieldID, payload); err != nil {
+		if err := handleClientPacket(s, pk); err != nil {
 			s.Server().CloseWithError(fmt.Errorf("failed to write packet to server: %w", err))
 		}
 	}
@@ -149,34 +138,15 @@ loop:
 }
 
 // handleClientPacket processes and forwards the provided packet from the client to the server.
-func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shieldID int32, payload []byte) (err error) {
+func handleClientPacket(s *Session, pk packet.Packet) (err error) {
 	ctx := NewContext()
-	buf := bytes.NewBuffer(payload)
-	if err := header.Read(buf); err != nil {
-		return errors.New("failed to decode header")
-	}
-
-	//if !slices.Contains(s.opts.ClientDecode, header.PacketID) {
-	//	s.Processor().ProcessClientEncoded(ctx, &payload)
-	//	if !ctx.Cancelled() {
-	//		return s.Server().Write(payload)
-	//	}
-	//	return
-	//}
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic while decoding packet %v: %v", header.PacketID, r)
+			err = fmt.Errorf("panic while decoding packet %T: %v", pk, r)
 		}
 	}()
 
-	factory, ok := pool[header.PacketID]
-	if !ok {
-		return fmt.Errorf("unknown packet %d", header.PacketID)
-	}
-
-	pk := factory()
-	pk.Marshal(s.client.Proto().NewReader(buf, shieldID, true))
 	s.Processor().ProcessClient(ctx, &pk)
 	if !ctx.Cancelled() {
 		if s.opts.SyncProtocol {
