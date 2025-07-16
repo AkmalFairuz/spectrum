@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	spectrumpacket "github.com/cooldogedev/spectrum/server/packet"
@@ -74,7 +73,7 @@ loop:
 				s.tracker.handlePacket(pk)
 			}
 
-			if err := s.client.WritePacket(pk); err != nil {
+			if err := s.WritePacketToClient(pk); err != nil {
 				s.CloseWithError(fmt.Errorf("failed to write packet to client: %w", err))
 				logError(s, "failed to write packet to client", err)
 				break loop
@@ -157,13 +156,13 @@ func handleClientPacket(s *Session, header *packet.Header, pool packet.Pool, shi
 		return errors.New("failed to decode header")
 	}
 
-	if !slices.Contains(s.opts.ClientDecode, header.PacketID) {
-		s.Processor().ProcessClientEncoded(ctx, &payload)
-		if !ctx.Cancelled() {
-			return s.Server().Write(payload)
-		}
-		return
-	}
+	//if !slices.Contains(s.opts.ClientDecode, header.PacketID) {
+	//	s.Processor().ProcessClientEncoded(ctx, &payload)
+	//	if !ctx.Cancelled() {
+	//		return s.Server().Write(payload)
+	//	}
+	//	return
+	//}
 
 	defer func() {
 		if r := recover(); r != nil {

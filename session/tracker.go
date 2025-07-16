@@ -69,7 +69,7 @@ func (t *tracker) handlePacket(pk packet.Packet) {
 
 func (t *tracker) clearBossBars(s *Session) {
 	t.bossBars.Each(func(i int64) bool {
-		_ = s.client.WritePacket(&packet.BossEvent{
+		_ = s.WritePacketToClient(&packet.BossEvent{
 			BossEntityUniqueID: i,
 			EventType:          packet.BossEventHide,
 		})
@@ -80,7 +80,7 @@ func (t *tracker) clearBossBars(s *Session) {
 
 func (t *tracker) clearEffects(s *Session) {
 	t.effects.Each(func(i int32) bool {
-		_ = s.client.WritePacket(&packet.MobEffect{
+		_ = s.WritePacketToClient(&packet.MobEffect{
 			EntityRuntimeID: s.client.GameData().EntityRuntimeID,
 			EffectType:      i,
 			Operation:       packet.MobEffectRemove,
@@ -92,7 +92,7 @@ func (t *tracker) clearEffects(s *Session) {
 
 func (t *tracker) clearEntities(s *Session) {
 	t.entities.Each(func(i int64) bool {
-		_ = s.client.WritePacket(&packet.RemoveActor{
+		_ = s.WritePacketToClient(&packet.RemoveActor{
 			EntityUniqueID: i,
 		})
 		return true
@@ -110,7 +110,7 @@ func (t *tracker) clearPlayers(s *Session) {
 	})
 	t.players.Clear()
 
-	_ = s.client.WritePacket(&packet.PlayerList{
+	_ = s.WritePacketToClient(&packet.PlayerList{
 		ActionType: packet.PlayerListActionRemove,
 		Entries:    entries,
 	})
@@ -118,7 +118,7 @@ func (t *tracker) clearPlayers(s *Session) {
 
 func (t *tracker) clearScoreboards(s *Session) {
 	t.scoreboards.Each(func(i string) bool {
-		_ = s.client.WritePacket(&packet.RemoveObjective{
+		_ = s.WritePacketToClient(&packet.RemoveObjective{
 			ObjectiveName: i,
 		})
 		return true

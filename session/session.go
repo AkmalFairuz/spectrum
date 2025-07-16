@@ -272,7 +272,7 @@ func (s *Session) CloseWithError(err error) {
 	s.once.Do(func() {
 		message := err.Error()
 		s.Processor().ProcessDisconnection(NewContext(), &message)
-		_ = s.client.WritePacket(&packet.Disconnect{Message: message})
+		_ = s.WritePacketToClient(&packet.Disconnect{Message: message})
 		_ = s.client.Close()
 		s.serverMu.RLock()
 		if s.serverConn != nil {
@@ -340,7 +340,7 @@ func (s *Session) sendMetadata(noAI bool) {
 	}
 	metadata.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagBreathing)
 	metadata.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagHasGravity)
-	_ = s.client.WritePacket(&packet.SetActorData{
+	_ = s.WritePacketToClient(&packet.SetActorData{
 		EntityRuntimeID: s.client.GameData().EntityRuntimeID,
 		EntityMetadata:  metadata,
 	})
@@ -353,7 +353,7 @@ func (s *Session) sendGameData(gameData minecraft.GameData) {
 	chunkZ := int32(pos.Z()) >> 4
 	for x := chunkX - 4; x <= chunkX+4; x++ {
 		for z := chunkZ - 4; z <= chunkZ+4; z++ {
-			_ = s.client.WritePacket(&packet.LevelChunk{
+			_ = s.WritePacketToClient(&packet.LevelChunk{
 				Dimension:     gameData.Dimension,
 				Position:      protocol.ChunkPos{x, z},
 				SubChunkCount: 1,
@@ -368,16 +368,29 @@ func (s *Session) sendGameData(gameData minecraft.GameData) {
 	s.tracker.clearPlayers(s)
 	s.tracker.clearScoreboards(s)
 	s.tracker.mu.Unlock()
-	_ = s.client.WritePacket(&packet.MovePlayer{
+	_ = s.WritePacketToClient(&packet.MovePlayer{
 		EntityRuntimeID: gameData.EntityRuntimeID,
 		Position:        gameData.PlayerPosition,
 		Pitch:           gameData.Pitch,
 		Yaw:             gameData.Yaw,
 		Mode:            packet.MoveModeReset,
 	})
-	_ = s.client.WritePacket(&packet.LevelEvent{EventType: packet.LevelEventStopRaining, EventData: 10_000})
-	_ = s.client.WritePacket(&packet.LevelEvent{EventType: packet.LevelEventStopThunderstorm})
-	_ = s.client.WritePacket(&packet.SetDifficulty{Difficulty: uint32(gameData.Difficulty)})
-	_ = s.client.WritePacket(&packet.SetPlayerGameType{GameType: gameData.PlayerGameMode})
-	_ = s.client.WritePacket(&packet.GameRulesChanged{GameRules: gameData.GameRules})
+	_ = s.WritePacketToClient(&packet.LevelEvent{EventType: packet.LevelEventStopRaining, EventData: 10_000})
+	_ = s.WritePacketToClient(&packet.LevelEvent{EventType: packet.LevelEventStopThunderstorm})
+	_ = s.WritePacketToClient(&packet.SetDifficulty{Difficulty: uint32(gameData.Difficulty)})
+	_ = s.WritePacketToClient(&packet.SetPlayerGameType{GameType: gameData.PlayerGameMode})
+	_ = s.WritePacketToClient(&packet.GameRulesChanged{GameRules: gameData.GameRules})
+}
+
+func (s *Session) WritePacketToClient(pk packet.Packet) error {
+	if proc, ok := s.Processor().(interface {
+		ProcessWritePacketToClient(*Context, *packet.Packet) bool
+	}); ok {
+		ctx := NewContext()
+		proc.ProcessWritePacketToClient(ctx, &pk)
+		if ctx.Cancelled() {
+			return nil
+		}
+	}
+	return s.client.WritePacket(pk)
 }
