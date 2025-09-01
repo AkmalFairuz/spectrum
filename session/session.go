@@ -265,7 +265,7 @@ func (s *Session) WritePacketToClient(pk packet.Packet) error {
 		ctx := NewContext()
 		v.ProcessWritePacketToClient(ctx, &pk)
 		if ctx.Cancelled() {
-			return errors.New("packet write cancelled by processor")
+			return nil
 		}
 	}
 	return s.client.WritePacket(pk)
