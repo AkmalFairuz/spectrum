@@ -11,6 +11,8 @@ type Writer struct {
 	w io.Writer
 	// p is a reusable byte slice used for writing the length of the packet.
 	p []byte
+	// b is a reusable byte slice used for writing the packet data.
+	b []byte
 }
 
 // NewWriter creates a new Writer with the given io.Writer.
@@ -18,6 +20,7 @@ func NewWriter(w io.Writer) *Writer {
 	return &Writer{
 		w: w,
 		p: make([]byte, 4),
+		b: make([]byte, 32768),
 	}
 }
 
@@ -26,7 +29,9 @@ func NewWriter(w io.Writer) *Writer {
 // then writes the prefixed data to the underlying io.Writer.
 func (w *Writer) Write(data []byte) (err error) {
 	binary.BigEndian.PutUint32(w.p, uint32(len(data)))
-	if _, err := w.w.Write(append(w.p, data...)); err != nil {
+	w.b = append(w.b[:0], w.p...)
+	w.b = append(w.b, data...)
+	if _, err := w.w.Write(w.b); err != nil {
 		return err
 	}
 	return
