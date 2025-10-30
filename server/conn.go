@@ -20,7 +20,7 @@ import (
 	"github.com/cooldogedev/spectrum/internal"
 	"github.com/cooldogedev/spectrum/protocol"
 	packet2 "github.com/cooldogedev/spectrum/server/packet"
-	"github.com/golang/snappy"
+	"github.com/klauspost/compress/snappy"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
