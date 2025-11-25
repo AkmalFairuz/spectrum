@@ -77,7 +77,7 @@ func (c *Client) WritePacket(pk packet.Packet) error {
 		return err
 	}
 	pk.Encode(buf)
-	return c.writer.Write(buf.Bytes())
+	return c.writer.Write(nil, buf.Bytes())
 }
 
 // Close closes the underlying connection.

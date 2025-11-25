@@ -201,9 +201,9 @@ func (c *Conn) WritePackets(packets []packet.Packet) error {
 	decompressed := buf.Bytes()
 	if len(decompressed) > compressionThreshold {
 		flags |= flagPacketCompressed
-		return c.writer.Write(append([]byte{flags}, snappy.Encode(nil, decompressed)...))
+		return c.writer.Write([]byte{flags}, snappy.Encode(nil, decompressed))
 	}
-	return c.writer.Write(append([]byte{flags}, decompressed...))
+	return c.writer.Write([]byte{flags}, decompressed)
 }
 
 // Write writes provided byte slice to the underlying connection.
@@ -213,9 +213,9 @@ func (c *Conn) Write(p []byte) error {
 	flags := byte(0)
 	if len(p) > compressionThreshold {
 		flags |= flagPacketCompressed
-		return c.writer.Write(append([]byte{flags}, snappy.Encode(nil, p)...))
+		return c.writer.Write([]byte{flags}, snappy.Encode(nil, p))
 	}
-	return c.writer.Write(append([]byte{flags}, p...))
+	return c.writer.Write([]byte{flags}, p)
 }
 
 // Connect initiates the connection sequence with a default timeout of 1 minute.
