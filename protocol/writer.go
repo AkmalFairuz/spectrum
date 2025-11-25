@@ -28,7 +28,7 @@ func NewWriter(w io.Writer) *Writer {
 // It prefixes the packet data with its length as an uint32 in big-endian order,
 // then writes the prefixed data to the underlying io.Writer.
 func (w *Writer) Write(header []byte, data []byte) (err error) {
-	binary.BigEndian.PutUint32(w.p, uint32(len(data)))
+	binary.BigEndian.PutUint32(w.p, uint32(len(data)+len(header)))
 	w.b = append(w.b[:0], w.p...)
 	w.b = append(w.b, header...)
 	w.b = append(w.b, data...)
