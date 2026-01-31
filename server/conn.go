@@ -29,7 +29,7 @@ const (
 	flagPacketCompressed      = 0x01
 	flagPacketDecodeNotNeeded = 0x02
 
-	compressionThreshold = 256
+	compressionThreshold = 128
 )
 
 // Conn represents a connection to a server, managing packet reading and writing
