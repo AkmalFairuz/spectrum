@@ -237,6 +237,9 @@ func (s *Session) TransferContext(ctx context.Context, opts TransferOptions) (er
 		Pitch:           serverGameData.Pitch,
 		Yaw:             serverGameData.Yaw,
 		Mode:            packet.MoveModeReset,
+		TeleportData: protocol.Option(protocol.TeleportData{
+			TeleportCause: packet.TeleportCauseUnknown,
+		}),
 	})
 	_ = s.WritePacketToClient(&packet.LevelEvent{EventType: packet.LevelEventStopRaining, EventData: 10_000})
 	_ = s.WritePacketToClient(&packet.LevelEvent{EventType: packet.LevelEventStopThunderstorm})
