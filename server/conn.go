@@ -427,6 +427,9 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 		cData.SkinImageHeight = 64
 		cData.SkinImageWidth = 64
 		cData.SkinData = blankSkinBase64
+		skinResourcePatch.Geometry.Default = "geometry.humanoid.custom"
+		encodedSkinResourcePatch, _ := json.Marshal(skinResourcePatch)
+		cData.SkinResourcePatch = base64.StdEncoding.EncodeToString(encodedSkinResourcePatch)
 	}
 
 	return cData
