@@ -20,6 +20,7 @@ import (
 	"github.com/cooldogedev/spectrum/internal"
 	"github.com/cooldogedev/spectrum/protocol"
 	packet2 "github.com/cooldogedev/spectrum/server/packet"
+	"github.com/google/uuid"
 	"github.com/klauspost/compress/snappy"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
@@ -390,7 +391,6 @@ func (c *Conn) expect(ids ...uint32) {
 }
 
 func sanitizeClientData(cData login.ClientData) login.ClientData {
-	cData.SkinGeometry = ""
 	cData.SkinAnimationData = ""
 	cData.CapeData = ""
 	cData.CapeID = ""
@@ -414,7 +414,7 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 	cData.PersonaSkin = false
 	cData.AnimatedImageData = []login.SkinAnimation{}
 	cData.PersonaPieces = []login.PersonaPiece{}
-	cData.SkinID = ""
+	cData.SkinID = uuid.New().String()
 
 	parsedSkinData, parsedSkinDataErr := base64.StdEncoding.DecodeString(cData.SkinData)
 	if !((cData.SkinImageHeight == 128 && cData.SkinImageWidth == 128) ||
@@ -422,12 +422,29 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 		parsedSkinDataErr != nil ||
 		cData.SkinImageHeight*cData.SkinImageWidth*4 != len(parsedSkinData) ||
 		(skinResourcePatch.Geometry.Default != "geometry.humanoid.custom" && skinResourcePatch.Geometry.Default != "geometry.humanoid.customSlim") {
-		cData.SkinImageHeight = 0
-		cData.SkinImageWidth = 0
-		cData.SkinData = ""
+		cData.SkinImageHeight = 64
+		cData.SkinImageWidth = 64
+		cData.SkinData = blankSkinBase64
 	}
 
 	return cData
+}
+
+var blankSkinBase64 string
+
+func init() {
+	blankSkinBase64 = generateBlankSkinBase64()
+}
+
+func generateBlankSkinBase64() string {
+	skin := make([]byte, 64*64*4)
+	x, y := 12, 12
+	i := (y*64 + x) * 4
+	skin[i+0] = 255
+	skin[i+1] = 255
+	skin[i+2] = 255
+	skin[i+3] = 255
+	return base64.StdEncoding.EncodeToString(skin)
 }
 
 // sendConnectionRequest initiates the connection sequence by sending a ConnectionRequest packet to the underlying connection.
