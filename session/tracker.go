@@ -52,7 +52,7 @@ func (t *tracker) handlePacket(pk packet.Packet) {
 		}
 	case *packet.PlayerList:
 		for _, entry := range pk.Entries {
-			if pk.ActionType == packet.PlayerListActionAdd {
+			if entry.ActionType == protocol.PlayerListActionAdd {
 				t.players.Add(entry.UUID)
 			} else {
 				t.players.Remove(entry.UUID)
@@ -114,15 +114,15 @@ func (t *tracker) clearPlayers(s *Session) {
 	entries := make([]protocol.PlayerListEntry, 0)
 	t.players.Each(func(i [16]byte) bool {
 		entries = append(entries, protocol.PlayerListEntry{
-			UUID: i,
+			ActionType: protocol.PlayerListActionRemove,
+			UUID:       i,
 		})
 		return true
 	})
 	t.players.Clear()
 
 	_ = s.client.WritePacket(&packet.PlayerList{
-		ActionType: packet.PlayerListActionRemove,
-		Entries:    entries,
+		Entries: entries,
 	})
 }
 
