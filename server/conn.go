@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	_ "embed"
 	"github.com/cooldogedev/spectrum/internal"
 	"github.com/cooldogedev/spectrum/protocol"
 	packet2 "github.com/cooldogedev/spectrum/server/packet"
@@ -391,6 +392,7 @@ func (c *Conn) expect(ids ...uint32) {
 }
 
 func sanitizeClientData(cData login.ClientData) login.ClientData {
+	cData.SkinGeometry = humanoidGeometryBase64
 	cData.SkinAnimationData = ""
 	cData.CapeData = ""
 	cData.CapeID = ""
@@ -430,11 +432,12 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 	return cData
 }
 
-var blankSkinBase64 string
-
-func init() {
-	blankSkinBase64 = generateBlankSkinBase64()
-}
+var (
+	//go:embed humanoid.json
+	humanoidGeometry       []byte
+	humanoidGeometryBase64 string
+	blankSkinBase64        string
+)
 
 func generateBlankSkinBase64() string {
 	skin := make([]byte, 64*64*4)
@@ -445,6 +448,11 @@ func generateBlankSkinBase64() string {
 	skin[i+2] = 255
 	skin[i+3] = 255
 	return base64.StdEncoding.EncodeToString(skin)
+}
+
+func init() {
+	blankSkinBase64 = generateBlankSkinBase64()
+	humanoidGeometryBase64 = base64.StdEncoding.EncodeToString(humanoidGeometry)
 }
 
 // sendConnectionRequest initiates the connection sequence by sending a ConnectionRequest packet to the underlying connection.
