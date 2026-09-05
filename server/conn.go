@@ -392,7 +392,7 @@ func (c *Conn) expect(ids ...uint32) {
 }
 
 func sanitizeClientData(cData login.ClientData) login.ClientData {
-	cData.SkinGeometry = "{}"
+	cData.SkinGeometry = base64.StdEncoding.EncodeToString([]byte("{}"))
 	cData.SkinAnimationData = ""
 	cData.CapeData = ""
 	cData.CapeID = ""
