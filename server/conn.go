@@ -392,7 +392,7 @@ func (c *Conn) expect(ids ...uint32) {
 }
 
 func sanitizeClientData(cData login.ClientData) login.ClientData {
-	cData.SkinGeometry = humanoidGeometryBase64
+	cData.SkinGeometry = "{}"
 	cData.SkinAnimationData = ""
 	cData.CapeData = ""
 	cData.CapeID = ""
@@ -436,10 +436,7 @@ func sanitizeClientData(cData login.ClientData) login.ClientData {
 }
 
 var (
-	//go:embed humanoid.json
-	humanoidGeometry       []byte
-	humanoidGeometryBase64 string
-	blankSkinBase64        string
+	blankSkinBase64 string
 )
 
 func generateBlankSkinBase64() string {
@@ -455,7 +452,6 @@ func generateBlankSkinBase64() string {
 
 func init() {
 	blankSkinBase64 = generateBlankSkinBase64()
-	humanoidGeometryBase64 = base64.StdEncoding.EncodeToString(humanoidGeometry)
 }
 
 // sendConnectionRequest initiates the connection sequence by sending a ConnectionRequest packet to the underlying connection.
